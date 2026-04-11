@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AmonTech1 | Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0a; font-family: 'Poppins', sans-serif; color: #fff; }
+        
+        .navbar {
+            background: rgba(0,0,0,0.9);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #00ff88;
+        }
+        
+        .logo { font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #00ff88, #00cc66); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid #00ff8844;
+        }
+        
+        .stat-card i { font-size: 40px; color: #00ff88; }
+        .stat-card h3 { font-size: 32px; color: #00ff88; }
+        
+        .section-title {
+            font-size: 24px;
+            margin: 30px 0 20px;
+            border-left: 4px solid #00ff88;
+            padding-left: 15px;
+        }
+        
+        .user-table, .panel-table {
+            width: 100%;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        th { color: #00ff88; }
+        
+        .delete-btn {
+            background: rgba(255,0,0,0.2);
+            border: 1px solid #ff4444;
+            padding: 5px 15px;
+            border-radius: 20px;
+            color: #ff8888;
+            cursor: pointer;
+        }
+        
+        .add-coins-btn {
+            background: rgba(0,255,136,0.2);
+            border: 1px solid #00ff88;
+            padding: 5px 15px;
+            border-radius: 20px;
+            color: #00ff88;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 30px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid #00ff88;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #00ff8844;
+            border-radius: 50px;
+            color: #fff;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .close-modal {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #ff4444;
+        }
+        
+        .logout-btn {
+            background: rgba(255,0,0,0.2);
+            border: 1px solid #ff4444;
+            padding: 10px 20px;
+            border-radius: 50px;
+            color: #ff8888;
+            cursor: pointer;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tab-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            color: #fff;
+            cursor: pointer;
+        }
+        
+        .tab-btn.active {
+            background: #00ff88;
+            color: #000;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo"><i class="fas fa-bolt"></i> AMONTECH1 | ADMIN</div>
+        <div>
+            <span id="adminName" style="margin-right: 15px;"></span>
+            <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="stats-grid" id="statsContainer">
+            <div class="stat-card"><i class="fas fa-users"></i><h3 id="totalUsers">0</h3><p>Total Users</p></div>
+            <div class="stat-card"><i class="fas fa-robot"></i><h3 id="totalBots">0</h3><p>Bot Deployments</p></div>
+            <div class="stat-card"><i class="fas fa-server"></i><h3 id="totalPanels">0</h3><p>Active Panels</p></div>
+            <div class="stat-card"><i class="fas fa-coins"></i><h3 id="totalRevenue">0</h3><p>Total Revenue (Coins)</p></div>
+        </div>
+        
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="showTab('users')">👥 Users</button>
+            <button class="tab-btn" onclick="showTab('panels')">🔑 Panel Credentials</button>
+            <button class="tab-btn" onclick="showTab('create')">➕ Create Panel</button>
+            <button class="tab-btn" onclick="showTab('addCoins')">💰 Add Coins</button>
+        </div>
+        
+        <!-- Users Tab -->
+        <div id="usersTab" class="tab-content active">
+            <div class="section-title"><i class="fas fa-users"></i> All Users</div>
+            <div class="user-table">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Username</th><th>Name</th><th>Phone</th><th>Coins</th><th>Role</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="usersList"></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Panels Tab -->
+        <div id="panelsTab" class="tab-content">
+            <div class="section-title"><i class="fas fa-key"></i> Panel Credentials</div>
+            <div class="panel-table">
+                <table>
+                    <thead><tr><th>ID</th><th>Panel Username</th><th>Plan</th><th>Owner</th><th>Created</th><th>Action</th></tr></thead>
+                    <tbody id="panelsList"></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Create Panel Tab -->
+        <div id="createTab" class="tab-content">
+            <div class="section-title"><i class="fas fa-plus-circle"></i> Create Panel Credentials</div>
+            <div class="modal-content" style="max-width: 500px; margin: 0 auto;">
+                <input type="text" id="panelUsername" class="input-field" placeholder="Panel Username">
+                <input type="password" id="panelPassword" class="input-field" placeholder="Panel Password">
+                <select id="panelPlan" class="input-field">
+                    <option value="Starter">Starter (40 Coins)</option>
+                    <option value="Pro">Pro (120 Coins)</option>
+                    <option value="Unlimited">Unlimited (150 Coins)</option>
+                    <option value="Admin">Admin Access (300 Coins)</option>
+                </select>
+                <input type="number" id="panelUserId" class="input-field" placeholder="User ID (optional)">
+                <button class="btn" onclick="createPanelCredential()">Create Panel Credentials</button>
+            </div>
+        </div>
+        
+        <!-- Add Coins Tab -->
+        <div id="addCoinsTab" class="tab-content">
+            <div class="section-title"><i class="fas fa-coins"></i> Add Coins to User</div>
+            <div class="modal-content" style="max-width: 500px; margin: 0 auto;">
+                <input type="number" id="addCoinsUserId" class="input-field" placeholder="User ID">
+                <input type="number" id="addCoinsAmount" class="input-field" placeholder="Amount (Coins)">
+                <button class="btn" onclick="addCoinsToUser()">Add Coins</button>
+                <p style="margin-top: 15px; color: #aaa; font-size: 12px;">Contact user on WhatsApp: 254759006509 after adding coins</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = window.location.origin;
+        let authToken = localStorage.getItem('authToken');
+        
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/stats`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                document.getElementById('totalUsers').innerText = data.totalUsers || 0;
+                document.getElementById('totalPanels').innerText = data.totalPanels || 0;
+                document.getElementById('totalRevenue').innerText = data.totalRevenue || 0;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/users`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                const tbody = document.getElementById('usersList');
+                if (data.users) {
+                    tbody.innerHTML = data.users.map(user => `
+                        <tr>
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.name || '-'}</td>
+                            <td>${user.phone || '-'}</td>
+                            <td>${user.balance || 0}</td>
+                            <td>${user.role}</td>
+                            <td>
+                                <button class="add-coins-btn" onclick="addCoinsToUserById(${user.id})">+ Coins</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+        
+        async function loadPanels() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/panels`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                const tbody = document.getElementById('panelsList');
+                if (data.panels) {
+                    tbody.innerHTML = data.panels.map(panel => `
+                        <tr>
+                            <td>${panel.id}</td>
+                            <td><strong>${panel.username}</strong><br><small style="color:#aaa;">pass: ${panel.password_display || '••••••'}</small></td>
+                            <td>${panel.plan}</td>
+                            <td>${panel.owner_name || 'N/A'}</td>
+                            <td>${new Date(panel.created_at).toLocaleDateString()}</td>
+                            <td><button class="delete-btn" onclick="deletePanel(${panel.id})">Delete</button></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading panels:', error);
+            }
+        }
+        
+        async function createPanelCredential() {
+            const username = document.getElementById('panelUsername').value;
+            const password = document.getElementById('panelPassword').value;
+            const plan = document.getElementById('panelPlan').value;
+            const userId = document.getElementById('panelUserId').value;
+            
+            if (!username || !password) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/admin/create-panel`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ panelUsername: username, panelPassword: password, plan, userId: userId || null })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert(`✅ Panel created!\nUsername: ${username}\nPassword: ${password}\n\nSend these credentials to the user.`);
+                    document.getElementById('panelUsername').value = '';
+                    document.getElementById('panelPassword').value = '';
+                    loadPanels();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error creating panel: ' + error.message);
+            }
+        }
+        
+        async function addCoinsToUser() {
+            const userId = document.getElementById('addCoinsUserId').value;
+            const amount = document.getElementById('addCoinsAmount').value;
+            
+            if (!userId || !amount) {
+                alert('Please enter User ID and Amount');
+                return;
+            }
+            
+            alert(`✅ ${amount} coins added to user ID ${userId}!\n\nContact user on WhatsApp: 254759006509 to inform them.`);
+            document.getElementById('addCoinsUserId').value = '';
+            document.getElementById('addCoinsAmount').value = '';
+            loadUsers();
+        }
+        
+        function addCoinsToUserById(userId) {
+            document.getElementById('addCoinsUserId').value = userId;
+            document.getElementById('addCoinsAmount').focus();
+            showTab('addCoins');
+        }
+        
+        function deletePanel(panelId) {
+            if (confirm('Delete this panel credential?')) {
+                alert('Panel deleted!');
+                loadPanels();
+            }
+        }
+        
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(`${tabName}Tab`).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabName === 'users') loadUsers();
+            if (tabName === 'panels') loadPanels();
+        }
+        
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            window.location.href = '/';
+        }
+        
+        loadStats();
+        loadUsers();
+        loadPanels();
+    </script>
+</body>
+</html>

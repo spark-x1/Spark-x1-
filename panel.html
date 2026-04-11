@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amon Panel | Game Server Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .panel-container {
+            max-width: 450px;
+            width: 90%;
+            background: rgba(20, 20, 40, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 40px;
+            padding: 40px;
+            border: 1px solid #00ff88;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+        }
+        
+        .logo-icon i { font-size: 40px; color: #000; }
+        .logo h1 { font-size: 28px; background: linear-gradient(135deg, #00ff88, #00cc66); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        
+        .input-field {
+            width: 100%;
+            padding: 14px 18px;
+            margin: 10px 0;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #00ff8844;
+            border-radius: 50px;
+            color: #fff;
+            font-size: 16px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            border: none;
+            border-radius: 50px;
+            color: #000;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        .info-box {
+            background: rgba(0,255,136,0.1);
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: center;
+            border: 1px solid #00ff8844;
+        }
+        
+        .error-msg {
+            background: rgba(255,0,0,0.2);
+            border: 1px solid #ff4444;
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 15px;
+            color: #ff8888;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="panel-container">
+        <div class="logo">
+            <div class="logo-icon"><i class="fas fa-gamepad"></i></div>
+            <h1>AMON PANEL</h1>
+            <p style="color: #aaa;">Game Server Management</p>
+        </div>
+        
+        <input type="text" id="panelUsername" class="input-field" placeholder="Panel Username">
+        <input type="password" id="panelPassword" class="input-field" placeholder="Panel Password">
+        <button class="btn" onclick="loginToPanel()"><i class="fas fa-sign-in-alt"></i> Login to Panel</button>
+        
+        <div id="errorMsg" class="error-msg" style="display: none;"></div>
+        
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i>
+            <p style="margin-top: 10px;">Don't have panel credentials?</p>
+            <p>Contact <strong>AmonTech1</strong> on WhatsApp:</p>
+            <p><i class="fab fa-whatsapp"></i> <strong>254759006509</strong></p>
+        </div>
+    </div>
+    
+    <script>
+        function loginToPanel() {
+            const username = document.getElementById('panelUsername').value;
+            const password = document.getElementById('panelPassword').value;
+            const errorDiv = document.getElementById('errorMsg');
+            
+            if (!username || !password) {
+                errorDiv.textContent = 'Please enter username and password';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // This would connect to your actual panel API
+            // For now, show demo access
+            errorDiv.style.display = 'none';
+            alert(`🔐 Panel Login Simulation\n\nUsername: ${username}\n\nThis is where your actual game panel would open.\n\nContact admin for full panel access.`);
+            
+            // In production, redirect to actual panel URL:
+            // window.location.href = `https://your-panel-domain.com/login?user=${username}`;
+        }
+    </script>
+</body>
+</html>

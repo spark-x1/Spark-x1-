@@ -10,20 +10,27 @@
         body { background: #0a0a0a; font-family: 'Poppins', sans-serif; color: #fff; }
         
         .navbar {
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #00ff88;
+            border-bottom: 2px solid #00ff88;
+            flex-wrap: wrap;
+            gap: 15px;
             position: sticky;
             top: 0;
             z-index: 100;
-            flex-wrap: wrap;
-            gap: 15px;
         }
         
-        .logo { font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #00ff88, #00cc66); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .logo { 
+            font-size: 24px; 
+            font-weight: bold; 
+            background: linear-gradient(135deg, #00ff88, #00cc66); 
+            -webkit-background-clip: text; 
+            background-clip: text; 
+            color: transparent; 
+        }
         .logo i { color: #00ff88; margin-right: 10px; }
         
         .nav-buttons {
@@ -49,6 +56,20 @@
             color: #000;
         }
         
+        .logout-btn {
+            background: rgba(255,0,0,0.2);
+            border: 1px solid #ff4444;
+            padding: 8px 20px;
+            border-radius: 50px;
+            color: #ff8888;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255,0,0,0.4);
+        }
+        
         .container { max-width: 1400px; margin: 0 auto; padding: 30px; }
         
         .welcome-card {
@@ -58,6 +79,9 @@
             margin-bottom: 30px;
             border: 1px solid #00ff8844;
         }
+        
+        .welcome-card h1 { font-size: 28px; margin-bottom: 10px; }
+        .welcome-card h1 i { color: #00ff88; margin-right: 10px; }
         
         .stats-grid {
             display: grid;
@@ -72,10 +96,13 @@
             padding: 25px;
             text-align: center;
             border: 1px solid #00ff8844;
+            transition: transform 0.3s;
         }
         
+        .stat-card:hover { transform: translateY(-5px); }
         .stat-card i { font-size: 40px; color: #00ff88; margin-bottom: 10px; }
-        .stat-card h3 { font-size: 28px; color: #00ff88; }
+        .stat-card h3 { font-size: 32px; color: #00ff88; }
+        .stat-card p { color: #aaa; }
         
         .section-title {
             font-size: 24px;
@@ -95,11 +122,15 @@
             background: rgba(255,255,255,0.05);
             border-radius: 25px;
             padding: 25px;
-            transition: transform 0.3s;
+            transition: all 0.3s;
             border: 1px solid rgba(0,255,136,0.2);
         }
         
-        .bot-card:hover { transform: translateY(-5px); background: rgba(255,255,255,0.08); border-color: #00ff88; }
+        .bot-card:hover { 
+            transform: translateY(-5px); 
+            background: rgba(255,255,255,0.08); 
+            border-color: #00ff88;
+        }
         
         .bot-image {
             width: 100%;
@@ -107,7 +138,6 @@
             border-radius: 20px;
             object-fit: cover;
             margin-bottom: 15px;
-            border: 1px solid #00ff8844;
         }
         
         .bot-header {
@@ -171,6 +201,7 @@
             width: 100%;
             margin-top: 15px;
             transition: all 0.3s;
+            font-size: 14px;
         }
         
         .deploy-btn:hover {
@@ -184,21 +215,10 @@
             border-radius: 20px;
             padding: 20px;
             margin-bottom: 15px;
-        }
-        
-        .logout-btn {
-            background: rgba(255,0,0,0.2);
-            border: 1px solid #ff4444;
-            padding: 10px 20px;
-            border-radius: 50px;
-            color: #ff8888;
-            cursor: pointer;
             transition: all 0.3s;
         }
         
-        .logout-btn:hover {
-            background: rgba(255,0,0,0.4);
-        }
+        .panel-card:hover { transform: translateX(5px); }
         
         .modal {
             display: none;
@@ -217,17 +237,22 @@
             background: #1a1a2e;
             border-radius: 30px;
             padding: 30px;
-            max-width: 400px;
+            max-width: 450px;
             width: 90%;
             border: 1px solid #00ff88;
         }
+        
+        .modal-content h3 { margin-bottom: 20px; color: #00ff88; }
         
         .close-modal {
             float: right;
             font-size: 24px;
             cursor: pointer;
             color: #ff4444;
+            transition: all 0.3s;
         }
+        
+        .close-modal:hover { color: #ff8888; }
         
         .payment-option {
             margin: 15px 0;
@@ -251,18 +276,25 @@
         
         .input-field {
             width: 100%;
-            padding: 12px;
+            padding: 12px 16px;
             margin: 10px 0;
             background: rgba(255,255,255,0.1);
             border: 1px solid #00ff8844;
             border-radius: 50px;
             color: #fff;
+            font-size: 14px;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #00ff88;
         }
         
         @media (max-width: 768px) {
             .navbar { flex-direction: column; text-align: center; }
-            .bot-grid { grid-template-columns: 1fr; }
             .container { padding: 20px; }
+            .bot-grid { grid-template-columns: 1fr; }
+            .bot-image { height: 150px; }
         }
     </style>
 </head>
@@ -271,8 +303,8 @@
         <div class="logo"><i class="fas fa-bolt"></i> AMONTECH1</div>
         <div class="nav-buttons">
             <a href="https://github.com/AmonTech1" target="_blank" class="nav-link"><i class="fab fa-github"></i> GitHub</a>
-            <a href="https://whatsapp.com/channel/0029VbBaJvI7IUYbtCeaPh0I" target="_blank" class="nav-link"><i class="fab fa-whatsapp"></i> WhatsApp</a>
-            <span id="userName" style="margin-right: 5px;"></span>
+            <a href="https://whatsapp.com/channel/0029VbBaJvI7IUYbtCeaPh0I" target="_blank" class="nav-link"><i class="fab fa-whatsapp"></i> Channel</a>
+            <span id="userName" style="color: #00ff88;"><i class="fas fa-user"></i> User</span>
             <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
     </div>
@@ -299,12 +331,11 @@
                     <h3>NOVA MD</h3>
                 </div>
                 <div class="bot-description">
-                    Next-generation WhatsApp session generator with enterprise-grade encryption, multi-platform deployment, and lightning-fast pair code generation. E2E Encrypted, Under 30s, Global CDN.
+                    Next-generation WhatsApp session generator with enterprise-grade encryption, multi-platform deployment, and lightning-fast pair code generation.
                 </div>
                 <div class="bot-links">
                     <a href="https://github.com/AmonTech1/NOVA-MD" target="_blank" class="bot-link"><i class="fab fa-github"></i> GitHub Repo</a>
                     <a href="https://nova-md-pair-djim.onrender.com" target="_blank" class="bot-link"><i class="fas fa-key"></i> Pair Site</a>
-                    <a href="https://github.com/AmonTech1/NOVA-MD#readme" target="_blank" class="bot-link"><i class="fas fa-book"></i> Docs</a>
                 </div>
                 <div class="price">20 Coins / Week</div>
                 <button class="deploy-btn" onclick="showDeployModal('NOVA MD', 20)"><i class="fas fa-rocket"></i> Deploy Now</button>
@@ -318,12 +349,11 @@
                     <h3>Benzo MD</h3>
                 </div>
                 <div class="bot-description">
-                    Advanced multi-device WhatsApp bot with AI-powered responses, automation, media downloader, sticker maker, admin commands, and group management. High-performance cluster ready.
+                    Advanced multi-device WhatsApp bot with AI-powered responses, automation, media downloader, and group management.
                 </div>
                 <div class="bot-links">
                     <a href="https://github.com/AmonTech1/Benzo-MD-bot" target="_blank" class="bot-link"><i class="fab fa-github"></i> GitHub Repo</a>
                     <a href="#" class="bot-link" onclick="alert('Benzo MD Pair Site coming soon! Contact admin for early access.')"><i class="fas fa-key"></i> Pair Site (Soon)</a>
-                    <a href="https://github.com/AmonTech1/Benzo-MD-bot#readme" target="_blank" class="bot-link"><i class="fas fa-book"></i> Docs</a>
                 </div>
                 <div class="price">20 Coins / Week</div>
                 <button class="deploy-btn" onclick="showDeployModal('Benzo MD', 20)"><i class="fas fa-rocket"></i> Deploy Now</button>
@@ -407,7 +437,6 @@
         let selectedBot = null;
         let selectedPanel = null;
         
-        // Check if logged in
         if (!authToken) {
             window.location.href = '/';
         }
@@ -445,9 +474,7 @@
                 }
             } catch (error) {
                 console.error('Error loading dashboard:', error);
-                if (error.message.includes('401')) {
-                    logout();
-                }
+                if (error.message.includes('401')) logout();
             }
         }
         
@@ -466,15 +493,25 @@
         
         async function confirmDeploy() {
             if (!selectedBot) return;
+            
             const userCoins = parseInt(document.getElementById('userCoins').innerText);
             
             if (userCoins < selectedBot.cost) {
-                alert(`❌ Insufficient coins!\n\nNeed: ${selectedBot.cost} coins\nYour balance: ${userCoins} coins\n\nContact admin on WhatsApp: 254759006509 to add coins.`);
+                const needed = selectedBot.cost - userCoins;
+                const useMpesa = confirm(`❌ Insufficient coins!\n\nNeed: ${selectedBot.cost} coins\nYour balance: ${userCoins} coins\nNeed: ${needed} more coins\n\nWould you like to pay via M-PESA instead?`);
+                
+                if (useMpesa) {
+                    const phone = prompt('Enter your M-PESA phone number (e.g., 254712345678):');
+                    if (phone && phone.length >= 10) {
+                        await deployWithMpesa(selectedBot.name, selectedBot.cost, phone);
+                    }
+                } else {
+                    alert(`Contact admin on WhatsApp: 254759006509 to add coins.`);
+                }
                 closeDeployModal();
                 return;
             }
             
-            // Call API to deploy bot
             try {
                 const response = await fetch(`${API_URL}/api/deploy-bot`, {
                     method: 'POST',
@@ -491,14 +528,42 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(`✅ ${selectedBot.name} deployed successfully!\n\nYour bot will be active for 7 days.\n\nContact admin on WhatsApp: 254759006509 for:\n- Bot files\n- Setup guide\n- Session credentials`);
+                    alert(`✅ ${selectedBot.name} deployed successfully for 7 days!\n\nContact admin on WhatsApp: ${data.adminWhatsApp || '254759006509'} for bot files and setup guide.`);
                     closeDeployModal();
-                    loadUserData(); // Refresh balance
+                    loadUserData();
                 } else {
                     alert('❌ Deployment failed: ' + data.error);
                 }
             } catch (error) {
                 alert('❌ Deployment failed. Please try again.');
+            }
+        }
+        
+        async function deployWithMpesa(botName, cost, phone) {
+            try {
+                const response = await fetch(`${API_URL}/api/deploy-bot`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ 
+                        botType: botName, 
+                        useCoins: false,
+                        phoneNumber: phone
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.requiresPayment) {
+                    alert(`✅ M-PESA STK Push sent to ${phone}!\n\nPlease check your phone, enter M-PESA PIN to complete payment.\n\nOrder Number: ${data.orderNumber}\n\nAfter payment, bot will be deployed automatically.`);
+                    closeDeployModal();
+                } else {
+                    alert('❌ Payment failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('❌ Payment failed. Please try again.');
             }
         }
         
@@ -517,15 +582,25 @@
         
         async function confirmBuyPanel() {
             if (!selectedPanel) return;
+            
             const userCoins = parseInt(document.getElementById('userCoins').innerText);
             
             if (userCoins < selectedPanel.cost) {
-                alert(`❌ Insufficient coins!\n\nNeed: ${selectedPanel.cost} coins\nYour balance: ${userCoins} coins\n\nContact admin on WhatsApp: 254759006509 to add coins.`);
+                const needed = selectedPanel.cost - userCoins;
+                const useMpesa = confirm(`❌ Insufficient coins!\n\nNeed: ${selectedPanel.cost} coins\nYour balance: ${userCoins} coins\nNeed: ${needed} more coins\n\nWould you like to pay via M-PESA instead?`);
+                
+                if (useMpesa) {
+                    const phone = prompt('Enter your M-PESA phone number (e.g., 254712345678):');
+                    if (phone && phone.length >= 10) {
+                        await buyPanelWithMpesa(selectedPanel.plan, selectedPanel.cost, phone);
+                    }
+                } else {
+                    alert(`Contact admin on WhatsApp: 254759006509 to add coins.`);
+                }
                 closeBuyPanelModal();
                 return;
             }
             
-            // Call API to buy panel
             try {
                 const response = await fetch(`${API_URL}/api/buy-panel`, {
                     method: 'POST',
@@ -535,21 +610,51 @@
                     },
                     body: JSON.stringify({ 
                         plan: selectedPanel.plan, 
-                        cost: selectedPanel.cost 
+                        cost: selectedPanel.cost,
+                        useCoins: true
                     })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(`✅ Panel purchase successful!\n\nPlan: ${selectedPanel.plan}\nAmount: ${selectedPanel.cost} coins\n\nAdmin will contact you on WhatsApp (254759006509) within 24 hours with your panel credentials.`);
+                    alert(`✅ Panel purchase successful!\n\nPlan: ${selectedPanel.plan}\nAmount: ${selectedPanel.cost} coins\n\nAdmin will contact you on WhatsApp: ${data.adminWhatsApp || '254759006509'} within 24 hours with your panel credentials.`);
                     closeBuyPanelModal();
-                    loadUserData(); // Refresh balance
+                    loadUserData();
                 } else {
                     alert('❌ Purchase failed: ' + data.error);
                 }
             } catch (error) {
                 alert('❌ Purchase failed. Please try again.');
+            }
+        }
+        
+        async function buyPanelWithMpesa(plan, cost, phone) {
+            try {
+                const response = await fetch(`${API_URL}/api/buy-panel`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ 
+                        plan: plan, 
+                        cost: cost,
+                        useCoins: false,
+                        phoneNumber: phone
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.requiresPayment) {
+                    alert(`✅ M-PESA STK Push sent to ${phone}!\n\nPlease check your phone, enter M-PESA PIN to complete payment.\n\nOrder Number: ${data.orderNumber}\n\nAfter payment, admin will create your panel credentials.`);
+                    closeBuyPanelModal();
+                } else {
+                    alert('❌ Payment failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('❌ Payment failed. Please try again.');
             }
         }
         
@@ -559,7 +664,6 @@
             window.location.href = '/';
         }
         
-        // Load user data on page load
         loadUserData();
     </script>
 </body>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amon Panel - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .panel-container {
+            background: rgba(20,20,40,0.95);
+            border-radius: 30px;
+            padding: 40px;
+            width: 400px;
+            max-width: 90%;
+            border: 1px solid #00ff88;
+            box-shadow: 0 0 30px rgba(0,255,136,0.2);
+        }
+        .logo { text-align: center; margin-bottom: 30px; }
+        .logo i { font-size: 60px; color: #00ff88; }
+        .logo h1 { background: linear-gradient(135deg, #00ff88, #00cc66); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .input-field {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            background: #222;
+            border: 1px solid #00ff8844;
+            border-radius: 50px;
+            color: #fff;
+            font-size: 16px;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            border: none;
+            border-radius: 50px;
+            color: #000;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .error-msg {
+            background: #ff444420;
+            border: 1px solid #ff4444;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 15px;
+            color: #ff8888;
+            text-align: center;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="panel-container">
+        <div class="logo">
+            <i class="fas fa-gamepad"></i>
+            <h1>AMON PANEL</h1>
+            <p style="color: #aaa;">Enter your credentials</p>
+        </div>
+        
+        <div id="errorMsg" class="error-msg hidden"></div>
+        
+        <input type="text" id="panelUsername" class="input-field" placeholder="Panel Username">
+        <input type="password" id="panelPassword" class="input-field" placeholder="Panel Password">
+        <button class="btn" onclick="loginToPanel()">Login to Panel</button>
+        
+        <p style="text-align: center; margin-top: 20px; color: #aaa; font-size: 12px;">
+            Don't have credentials? <a href="/user.html" style="color: #00ff88;">Buy a panel</a>
+        </p>
+    </div>
+    
+    <script>
+        const API_URL = window.location.origin;
+        
+        async function loginToPanel() {
+            const username = document.getElementById('panelUsername').value;
+            const password = document.getElementById('panelPassword').value;
+            const errorDiv = document.getElementById('errorMsg');
+            
+            if (!username || !password) {
+                errorDiv.textContent = 'Please enter username and password';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            errorDiv.classList.add('hidden');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/panel/validate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Store panel token and redirect
+                    localStorage.setItem('panelToken', data.token);
+                    window.location.href = data.redirectTo;
+                } else {
+                    errorDiv.textContent = data.error || 'Invalid credentials';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Login failed. Please try again.';
+                errorDiv.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

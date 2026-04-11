@@ -65,7 +65,7 @@
         <div class="logo">
             <i class="fas fa-gamepad"></i>
             <h1>AMON PANEL</h1>
-            <p style="color: #aaa;">Enter your credentials</p>
+            <p style="color: #aaa;">Enter credentials from notification</p>
         </div>
         
         <div id="errorMsg" class="error-msg hidden"></div>
@@ -105,8 +105,10 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Store panel token and redirect
-                    localStorage.setItem('panelToken', data.token);
+                    // Store panel info
+                    localStorage.setItem('panelApiUrl', data.api_url);
+                    localStorage.setItem('panelApiKey', data.api_key);
+                    localStorage.setItem('panelUsername', data.panel_username);
                     window.location.href = data.redirectTo;
                 } else {
                     errorDiv.textContent = data.error || 'Invalid credentials';

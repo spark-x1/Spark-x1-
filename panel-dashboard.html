@@ -18,41 +18,22 @@
         }
         .logo { font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #00ff88, #00cc66); -webkit-background-clip: text; background-clip: text; color: transparent; }
         .container { max-width: 1200px; margin: 0 auto; padding: 30px; }
-        .server-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; margin-top: 30px; }
         .server-card {
             background: #1a1a2e;
             border-radius: 20px;
             padding: 25px;
             border: 1px solid #00ff8844;
-            transition: all 0.3s;
+            margin-bottom: 20px;
         }
-        .server-card:hover { transform: translateY(-5px); border-color: #00ff88; }
         .server-status {
             display: inline-block;
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
             margin-bottom: 10px;
-        }
-        .status-running { background: #00ff8820; color: #00ff88; border: 1px solid #00ff88; }
-        .control-btn {
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: none;
-            cursor: pointer;
-            margin: 5px;
-            transition: all 0.3s;
-        }
-        .control-btn.start { background: #00ff88; color: #000; }
-        .control-btn.stop { background: #ff4444; color: #fff; }
-        .control-btn.restart { background: #ffaa00; color: #000; }
-        .back-btn {
-            background: #333;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 50px;
-            color: #fff;
-            cursor: pointer;
+            background: #00ff8820;
+            color: #00ff88;
+            border: 1px solid #00ff88;
         }
         .iframe-container {
             margin-top: 30px;
@@ -63,10 +44,17 @@
         }
         iframe {
             width: 100%;
-            height: 500px;
+            height: 600px;
             border: none;
         }
-        @media (max-width: 768px) { .navbar { flex-direction: column; } .container { padding: 20px; } }
+        .back-btn {
+            background: #333;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            color: #fff;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -76,20 +64,10 @@
     </div>
     
     <div class="container">
-        <h1><i class="fas fa-server"></i> Your Game Servers</h1>
-        <p>Manage your servers directly from this dashboard.</p>
-        
-        <div class="server-grid" id="serversList">
-            <div class="server-card">
-                <div class="server-status status-running"><i class="fas fa-circle"></i> RUNNING</div>
-                <h3><i class="fas fa-star-of-life"></i> NOVA MD - Server</h3>
-                <p>Node.js v20 | Region: EU</p>
-                <div>
-                    <button class="control-btn start">▶ Start</button>
-                    <button class="control-btn stop">⏹ Stop</button>
-                    <button class="control-btn restart">🔄 Restart</button>
-                </div>
-            </div>
+        <div class="server-card">
+            <div class="server-status"><i class="fas fa-circle"></i> CONNECTED</div>
+            <h3><i class="fas fa-server"></i> Your Game Server</h3>
+            <p>Panel access loaded below using your credentials.</p>
         </div>
         
         <div class="iframe-container">
@@ -98,19 +76,16 @@
     </div>
     
     <script>
-        // This loads the real panel in iframe but users see your URL
-        // The real panel URL is hidden from users
-        const REAL_PANEL_URL = 'https://panel.spaceify.eu';
+        // Get the stored panel API URL
+        const panelApiUrl = localStorage.getItem('panelApiUrl');
+        const panelUsername = localStorage.getItem('panelUsername');
         
-        // Load the real panel in iframe
-        document.getElementById('panelIframe').src = REAL_PANEL_URL;
-        
-        // Control buttons (would connect to real panel API)
-        document.querySelectorAll('.control-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                alert('Server control feature coming soon! Contact admin for advanced control.');
-            });
-        });
+        if (panelApiUrl) {
+            // Load the real panel in iframe (URL is hidden from user)
+            document.getElementById('panelIframe').src = panelApiUrl;
+        } else {
+            document.getElementById('panelIframe').src = 'https://panel.spaceify.eu';
+        }
     </script>
 </body>
 </html>

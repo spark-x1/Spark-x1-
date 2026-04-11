@@ -19,10 +19,35 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            flex-wrap: wrap;
+            gap: 15px;
         }
         
         .logo { font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #00ff88, #00cc66); -webkit-background-clip: text; background-clip: text; color: transparent; }
         .logo i { color: #00ff88; margin-right: 10px; }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .nav-link {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #00ff8844;
+            padding: 8px 18px;
+            border-radius: 50px;
+            color: #00ff88;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .nav-link:hover {
+            background: #00ff88;
+            color: #000;
+        }
         
         .container { max-width: 1400px; margin: 0 auto; padding: 30px; }
         
@@ -61,8 +86,8 @@
         
         .bot-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
             margin-bottom: 40px;
         }
         
@@ -71,13 +96,69 @@
             border-radius: 25px;
             padding: 25px;
             transition: transform 0.3s;
-            cursor: pointer;
+            border: 1px solid rgba(0,255,136,0.2);
         }
         
-        .bot-card:hover { transform: translateY(-5px); background: rgba(255,255,255,0.08); }
-        .bot-card i { font-size: 50px; color: #00ff88; margin-bottom: 15px; }
-        .bot-card h3 { font-size: 22px; margin-bottom: 10px; }
-        .price { font-size: 28px; color: #00ff88; margin: 15px 0; }
+        .bot-card:hover { transform: translateY(-5px); background: rgba(255,255,255,0.08); border-color: #00ff88; }
+        
+        .bot-image {
+            width: 100%;
+            height: 180px;
+            border-radius: 20px;
+            object-fit: cover;
+            margin-bottom: 15px;
+            border: 1px solid #00ff8844;
+        }
+        
+        .bot-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .bot-header i { font-size: 40px; color: #00ff88; }
+        .bot-header h3 { font-size: 24px; }
+        
+        .bot-description {
+            color: #aaa;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .bot-links {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .bot-link {
+            background: rgba(0,255,136,0.1);
+            border: 1px solid #00ff8844;
+            padding: 6px 12px;
+            border-radius: 50px;
+            color: #00ff88;
+            text-decoration: none;
+            font-size: 12px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .bot-link:hover {
+            background: #00ff88;
+            color: #000;
+        }
+        
+        .price {
+            font-size: 24px;
+            color: #00ff88;
+            margin: 15px 0;
+            font-weight: bold;
+        }
         
         .deploy-btn {
             background: linear-gradient(135deg, #00ff88, #00cc66);
@@ -89,6 +170,12 @@
             cursor: pointer;
             width: 100%;
             margin-top: 15px;
+            transition: all 0.3s;
+        }
+        
+        .deploy-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(0,255,136,0.5);
         }
         
         .panel-card {
@@ -106,6 +193,11 @@
             border-radius: 50px;
             color: #ff8888;
             cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255,0,0,0.4);
         }
         
         .modal {
@@ -115,7 +207,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -136,13 +228,51 @@
             cursor: pointer;
             color: #ff4444;
         }
+        
+        .payment-option {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+        
+        .payment-option:hover {
+            border-color: #00ff88;
+            background: rgba(0,255,136,0.1);
+        }
+        
+        .payment-option.selected {
+            border-color: #00ff88;
+            background: rgba(0,255,136,0.2);
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #00ff8844;
+            border-radius: 50px;
+            color: #fff;
+        }
+        
+        @media (max-width: 768px) {
+            .navbar { flex-direction: column; text-align: center; }
+            .bot-grid { grid-template-columns: 1fr; }
+            .container { padding: 20px; }
+        }
     </style>
 </head>
 <body>
     <div class="navbar">
         <div class="logo"><i class="fas fa-bolt"></i> AMONTECH1</div>
-        <div>
-            <span id="userName" style="margin-right: 15px;"></span>
+        <div class="nav-buttons">
+            <a href="https://github.com/AmonTech1" target="_blank" class="nav-link"><i class="fab fa-github"></i> GitHub</a>
+            <a href="https://whatsapp.com/channel/0029VbBaJvI7IUYbtCeaPh0I" target="_blank" class="nav-link"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+            <span id="userName" style="margin-right: 5px;"></span>
             <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
     </div>
@@ -161,44 +291,74 @@
         
         <h2 class="section-title"><i class="fas fa-robot"></i> Deploy WhatsApp Bots</h2>
         <div class="bot-grid">
-            <div class="bot-card" onclick="showDeployModal('NOVA MD', 20)">
-                <i class="fas fa-star-of-life"></i>
-                <h3>NOVA MD</h3>
-                <p>Next-gen WhatsApp session manager. E2E encrypted, sub-30s pairing.</p>
+            <!-- NOVA MD Bot -->
+            <div class="bot-card">
+                <img src="https://i.ibb.co/3Ycqq9Fg/x.jpg" alt="NOVA MD" class="bot-image" onerror="this.src='https://via.placeholder.com/350x180?text=NOVA+MD'">
+                <div class="bot-header">
+                    <i class="fas fa-star-of-life"></i>
+                    <h3>NOVA MD</h3>
+                </div>
+                <div class="bot-description">
+                    Next-generation WhatsApp session generator with enterprise-grade encryption, multi-platform deployment, and lightning-fast pair code generation. E2E Encrypted, Under 30s, Global CDN.
+                </div>
+                <div class="bot-links">
+                    <a href="https://github.com/AmonTech1/NOVA-MD" target="_blank" class="bot-link"><i class="fab fa-github"></i> GitHub Repo</a>
+                    <a href="https://nova-md-pair-djim.onrender.com" target="_blank" class="bot-link"><i class="fas fa-key"></i> Pair Site</a>
+                    <a href="https://github.com/AmonTech1/NOVA-MD#readme" target="_blank" class="bot-link"><i class="fas fa-book"></i> Docs</a>
+                </div>
                 <div class="price">20 Coins / Week</div>
-                <button class="deploy-btn">Deploy Now</button>
+                <button class="deploy-btn" onclick="showDeployModal('NOVA MD', 20)"><i class="fas fa-rocket"></i> Deploy Now</button>
             </div>
-            <div class="bot-card" onclick="showDeployModal('Benzo MD', 20)">
-                <i class="fas fa-capsules"></i>
-                <h3>Benzo MD</h3>
-                <p>AI-powered multi-device bot with automation & group management.</p>
+            
+            <!-- Benzo MD Bot -->
+            <div class="bot-card">
+                <img src="https://i.ibb.co/27LJ7WDR/x.jpg" alt="Benzo MD" class="bot-image" onerror="this.src='https://via.placeholder.com/350x180?text=Benzo+MD'">
+                <div class="bot-header">
+                    <i class="fas fa-capsules"></i>
+                    <h3>Benzo MD</h3>
+                </div>
+                <div class="bot-description">
+                    Advanced multi-device WhatsApp bot with AI-powered responses, automation, media downloader, sticker maker, admin commands, and group management. High-performance cluster ready.
+                </div>
+                <div class="bot-links">
+                    <a href="https://github.com/AmonTech1/Benzo-MD-bot" target="_blank" class="bot-link"><i class="fab fa-github"></i> GitHub Repo</a>
+                    <a href="#" class="bot-link" onclick="alert('Benzo MD Pair Site coming soon! Contact admin for early access.')"><i class="fas fa-key"></i> Pair Site (Soon)</a>
+                    <a href="https://github.com/AmonTech1/Benzo-MD-bot#readme" target="_blank" class="bot-link"><i class="fas fa-book"></i> Docs</a>
+                </div>
                 <div class="price">20 Coins / Week</div>
-                <button class="deploy-btn">Deploy Now</button>
+                <button class="deploy-btn" onclick="showDeployModal('Benzo MD', 20)"><i class="fas fa-rocket"></i> Deploy Now</button>
             </div>
         </div>
         
         <h2 class="section-title"><i class="fas fa-gamepad"></i> Game Server Panels</h2>
         <div class="bot-grid" id="panelsContainer">
             <div class="bot-card" onclick="showBuyPanelModal('Starter', 40)">
-                <i class="fas fa-server"></i>
+                <i class="fas fa-server" style="font-size: 50px; color: #00ff88;"></i>
                 <h3>Starter Panel</h3>
-                <p>1 Game Server, Basic Resources</p>
+                <p>1 Game Server, Basic Resources, Panel Access</p>
                 <div class="price">40 Coins / Month</div>
                 <button class="deploy-btn">Buy Panel</button>
             </div>
             <div class="bot-card" onclick="showBuyPanelModal('Pro', 120)">
-                <i class="fas fa-crown"></i>
+                <i class="fas fa-crown" style="font-size: 50px; color: #00ff88;"></i>
                 <h3>Pro Panel</h3>
-                <p>Enhanced Resources, DDoS Protection</p>
+                <p>Enhanced Resources, DDoS Protection, Priority Support</p>
                 <div class="price">120 Coins / Month</div>
                 <button class="deploy-btn">Buy Panel</button>
             </div>
             <div class="bot-card" onclick="showBuyPanelModal('Unlimited', 150)">
-                <i class="fas fa-infinity"></i>
+                <i class="fas fa-infinity" style="font-size: 50px; color: #00ff88;"></i>
                 <h3>Unlimited Panel</h3>
-                <p>Unlimited Resources, Priority Support</p>
+                <p>Unlimited Resources, Full DDoS Protection, 24/7 Support</p>
                 <div class="price">150 Coins / Month</div>
                 <button class="deploy-btn">Buy Panel</button>
+            </div>
+            <div class="bot-card" onclick="showBuyPanelModal('Admin Access', 300)">
+                <i class="fas fa-user-shield" style="font-size: 50px; color: #00ff88;"></i>
+                <h3>Admin Panel Access</h3>
+                <p>Full Panel Control, Manage All Users, Super Admin Features</p>
+                <div class="price">300 Coins (One-time)</div>
+                <button class="deploy-btn">Get Access</button>
             </div>
         </div>
         
@@ -213,7 +373,13 @@
             <h3 id="deployBotName"></h3>
             <p>Deploy <span id="deployBotName2"></span> for 7 days</p>
             <p>Cost: <span id="deployCost"></span> Coins</p>
-            <button class="deploy-btn" onclick="confirmDeploy()">Confirm Deployment</button>
+            <p style="margin: 15px 0; color: #aaa;">After deployment, you'll receive:</p>
+            <ul style="margin-left: 20px; color: #aaa; font-size: 14px;">
+                <li>Bot session files</li>
+                <li>Deployment guide</li>
+                <li>24/7 support</li>
+            </ul>
+            <button class="deploy-btn" onclick="confirmDeploy()"><i class="fas fa-check"></i> Confirm Deployment</button>
         </div>
     </div>
     
@@ -224,7 +390,13 @@
             <h3 id="panelPlanName"></h3>
             <p>Buy <span id="panelPlanName2"></span> Panel</p>
             <p>Cost: <span id="panelCost"></span> Coins</p>
-            <button class="deploy-btn" onclick="confirmBuyPanel()">Confirm Purchase</button>
+            <p style="margin: 15px 0; color: #aaa;">After purchase, admin will:</p>
+            <ul style="margin-left: 20px; color: #aaa; font-size: 14px;">
+                <li>Create your panel credentials</li>
+                <li>Send login details via WhatsApp</li>
+                <li>Provide setup assistance</li>
+            </ul>
+            <button class="deploy-btn" onclick="confirmBuyPanel()"><i class="fas fa-shopping-cart"></i> Confirm Purchase</button>
         </div>
     </div>
     
@@ -234,6 +406,11 @@
         let currentUser = null;
         let selectedBot = null;
         let selectedPanel = null;
+        
+        // Check if logged in
+        if (!authToken) {
+            window.location.href = '/';
+        }
         
         async function loadUserData() {
             try {
@@ -257,14 +434,20 @@
                                 Plan: ${p.plan}<br>
                                 Status: <span style="color: #00ff88;">${p.status}</span><br>
                                 <small>Created: ${new Date(p.created_at).toLocaleDateString()}</small>
+                                <div style="margin-top: 10px;">
+                                    <a href="/panel.html" class="bot-link"><i class="fas fa-sign-in-alt"></i> Login to Panel</a>
+                                </div>
                             </div>
                         `).join('');
                     } else {
-                        panelsList.innerHTML = '<p>No panel credentials yet. Buy a panel above!</p>';
+                        panelsList.innerHTML = '<p style="text-align: center; color: #aaa;">No panel credentials yet. Buy a panel above!</p>';
                     }
                 }
             } catch (error) {
                 console.error('Error loading dashboard:', error);
+                if (error.message.includes('401')) {
+                    logout();
+                }
             }
         }
         
@@ -284,13 +467,39 @@
         async function confirmDeploy() {
             if (!selectedBot) return;
             const userCoins = parseInt(document.getElementById('userCoins').innerText);
+            
             if (userCoins < selectedBot.cost) {
-                alert(`Insufficient coins! Need ${selectedBot.cost} coins. Contact admin to add coins.`);
+                alert(`❌ Insufficient coins!\n\nNeed: ${selectedBot.cost} coins\nYour balance: ${userCoins} coins\n\nContact admin on WhatsApp: 254759006509 to add coins.`);
                 closeDeployModal();
                 return;
             }
-            alert(`✅ ${selectedBot.name} deployed successfully!\n\nContact admin on WhatsApp: 254759006509 for bot files and setup.`);
-            closeDeployModal();
+            
+            // Call API to deploy bot
+            try {
+                const response = await fetch(`${API_URL}/api/deploy-bot`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ 
+                        botType: selectedBot.name, 
+                        useCoins: true 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ ${selectedBot.name} deployed successfully!\n\nYour bot will be active for 7 days.\n\nContact admin on WhatsApp: 254759006509 for:\n- Bot files\n- Setup guide\n- Session credentials`);
+                    closeDeployModal();
+                    loadUserData(); // Refresh balance
+                } else {
+                    alert('❌ Deployment failed: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Deployment failed. Please try again.');
+            }
         }
         
         function showBuyPanelModal(plan, cost) {
@@ -309,13 +518,39 @@
         async function confirmBuyPanel() {
             if (!selectedPanel) return;
             const userCoins = parseInt(document.getElementById('userCoins').innerText);
+            
             if (userCoins < selectedPanel.cost) {
-                alert(`Insufficient coins! Need ${selectedPanel.cost} coins. Contact admin to add coins.\n\nAdmin WhatsApp: 254759006509`);
+                alert(`❌ Insufficient coins!\n\nNeed: ${selectedPanel.cost} coins\nYour balance: ${userCoins} coins\n\nContact admin on WhatsApp: 254759006509 to add coins.`);
                 closeBuyPanelModal();
                 return;
             }
-            alert(`✅ Panel purchase request sent!\n\nPlan: ${selectedPanel.plan}\nAmount: ${selectedPanel.cost} coins\n\nAdmin will create your panel credentials and send via WhatsApp.`);
-            closeBuyPanelModal();
+            
+            // Call API to buy panel
+            try {
+                const response = await fetch(`${API_URL}/api/buy-panel`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ 
+                        plan: selectedPanel.plan, 
+                        cost: selectedPanel.cost 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ Panel purchase successful!\n\nPlan: ${selectedPanel.plan}\nAmount: ${selectedPanel.cost} coins\n\nAdmin will contact you on WhatsApp (254759006509) within 24 hours with your panel credentials.`);
+                    closeBuyPanelModal();
+                    loadUserData(); // Refresh balance
+                } else {
+                    alert('❌ Purchase failed: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Purchase failed. Please try again.');
+            }
         }
         
         function logout() {
@@ -324,6 +559,7 @@
             window.location.href = '/';
         }
         
+        // Load user data on page load
         loadUserData();
     </script>
 </body>

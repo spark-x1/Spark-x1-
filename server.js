@@ -409,75 +409,253 @@ app.get('/api/dashboard', auth, async (req, res) => {
 });
 
 // ============================================
-// M-PESA STK PUSH (Payment)
+// ADD COINS TO USER (Admin)
 // ============================================
-app.post('/api/mpesa/stkpush', auth, async (req, res) => {
+app.post('/api/admin/add-coins', auth, isAdmin, async (req, res) => {
   try {
-    const { amount, phoneNumber, itemType, itemName } = req.body;
+    const { userId, amount } = req.body;
     
-    if (!amount || !phoneNumber || !itemType) {
-      return res.status(400).json({ error: 'Amount, phone number and item type required' });
+    log(`📝 Adding ${amount} coins to user ${userId}`, 'INFO');
+    
+    if (!userId || !amount || amount <= 0) {
+      return res.status(400).json({ error: 'Valid user ID and amount required' });
     }
     
-    // Format phone number
-    let formattedPhone = phoneNumber.replace(/\D/g, '');
-    if (formattedPhone.startsWith('0')) formattedPhone = '254' + formattedPhone.substring(1);
-    if (!formattedPhone.startsWith('254')) formattedPhone = '254' + formattedPhone;
+    const [user] = await db.query('SELECT id, username, balance FROM users WHERE id = ?', [userId]);
+    if (user.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
     
-    // Create order
-    const orderNumber = `AMON${Date.now()}${Math.floor(Math.random() * 1000)}`;
-    const [order] = await db.query(
-      'INSERT INTO orders (order_number, user_id, item_type, item_name, amount, phone, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [orderNumber, req.user.id, itemType, itemName || itemType, amount, formattedPhone, 'pending']
-    );
+    await db.query('UPDATE users SET balance = balance + ? WHERE id = ?', [amount, userId]);
     
-    // Send STK Push
-    const accessToken = await getMpesaAccessToken();
-    const timestamp = getTimestamp();
-    const password = generatePassword(MPESA_CONFIG.shortcode, MPESA_CONFIG.passkey, timestamp);
+    const [updatedUser] = await db.query('SELECT balance FROM users WHERE id = ?', [userId]);
     
-    const stkRequest = {
-      BusinessShortCode: MPESA_CONFIG.shortcode,
-      Password: password,
-      Timestamp: timestamp,
-      TransactionType: 'CustomerPayBillOnline',
-      Amount: Math.round(amount),
-      PartyA: formattedPhone,
-      PartyB: MPESA_CONFIG.shortcode,
-      PhoneNumber: formattedPhone,
-      CallBackURL: MPESA_CONFIG.callbackURL,
-      AccountReference: orderNumber,
-      TransactionDesc: `${itemType} - AmonTech1`
-    };
+    log(`✅ Added ${amount} coins to ${user[0].username}. New balance: ${updatedUser[0].balance}`, 'SUCCESS');
     
-    log(`📤 Sending STK Push for ${orderNumber} to ${formattedPhone}`, 'INFO');
-    
-    const response = await axios.post(MPESA_API.stkPush, stkRequest, {
-      headers: { Authorization: `Bearer ${accessToken}` }
+    res.json({
+      success: true,
+      message: `${amount} coins added to ${user[0].username}`,
+      newBalance: updatedUser[0].balance
     });
     
-    if (response.data.ResponseCode === '0') {
+  } catch (error) {
+    log(`Add coins error: ${error.message}`, 'ERROR');
+    res.status(500).json({ error: 'Failed to add coins: ' + error.message });
+  }
+});
+
+// ============================================
+// DEPLOY BOT (User)
+// ============================================
+app.post('/api/deploy-bot', auth, async (req, res) => {
+  try {
+    const { botType, useCoins, phoneNumber } = req.body;
+    const BOT_COST = 20;
+    
+    log(`🤖 Bot deployment request: ${botType}, UseCoins: ${useCoins}, Phone: ${phoneNumber}`, 'INFO');
+    
+    if (useCoins) {
+      const [user] = await db.query('SELECT id, username, balance FROM users WHERE id = ?', [req.user.id]);
+      
+      if (user.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      if (user[0].balance < BOT_COST) {
+        return res.status(400).json({ 
+          error: `Insufficient coins! Need ${BOT_COST} coins, you have ${user[0].balance} coins.`,
+          currentBalance: user[0].balance,
+          needed: BOT_COST - user[0].balance
+        });
+      }
+      
+      await db.query('UPDATE users SET balance = balance - ? WHERE id = ?', [BOT_COST, req.user.id]);
+      
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      
       await db.query(
-        'UPDATE orders SET mpesa_checkout_id = ? WHERE id = ?',
-        [response.data.CheckoutRequestID, order[0].insertId]
+        'INSERT INTO bot_deployments (user_id, bot_type, expires_at, status) VALUES (?, ?, ?, ?)',
+        [req.user.id, botType, expiresAt, 'active']
       );
+      
+      const orderNumber = `BOT${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      await db.query(
+        'INSERT INTO orders (order_number, user_id, item_type, item_name, amount, payment_method, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [orderNumber, req.user.id, 'bot', botType, BOT_COST, 'coins', 'completed']
+      );
+      
+      log(`✅ Bot deployed with coins by user ${user[0].username}`, 'SUCCESS');
       
       res.json({
         success: true,
-        message: 'STK Push sent. Check your phone for M-PESA prompt.',
-        checkoutRequestId: response.data.CheckoutRequestID,
-        orderNumber: orderNumber
+        message: `${botType} deployed successfully for 7 days!`,
+        expiresAt: expiresAt,
+        adminWhatsApp: process.env.ADMIN_WHATSAPP || '254759006509'
       });
     } else {
-      throw new Error(response.data.ResponseDescription);
+      if (!phoneNumber) {
+        return res.status(400).json({ error: 'Phone number required for M-PESA payment' });
+      }
+      
+      const orderNumber = `BOT${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      const [order] = await db.query(
+        'INSERT INTO orders (order_number, user_id, item_type, item_name, amount, phone, payment_method, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [orderNumber, req.user.id, 'bot', botType, BOT_COST, phoneNumber, 'mpesa', 'pending']
+      );
+      
+      let formattedPhone = phoneNumber.replace(/\D/g, '');
+      if (formattedPhone.startsWith('0')) formattedPhone = '254' + formattedPhone.substring(1);
+      if (!formattedPhone.startsWith('254')) formattedPhone = '254' + formattedPhone;
+      
+      const accessToken = await getMpesaAccessToken();
+      const timestamp = getTimestamp();
+      const password = generatePassword(MPESA_CONFIG.shortcode, MPESA_CONFIG.passkey, timestamp);
+      
+      const stkRequest = {
+        BusinessShortCode: MPESA_CONFIG.shortcode,
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: 'CustomerPayBillOnline',
+        Amount: BOT_COST,
+        PartyA: formattedPhone,
+        PartyB: MPESA_CONFIG.shortcode,
+        PhoneNumber: formattedPhone,
+        CallBackURL: MPESA_CONFIG.callbackURL,
+        AccountReference: orderNumber,
+        TransactionDesc: `${botType} Bot - 7 Days`
+      };
+      
+      const response = await axios.post(MPESA_API.stkPush, stkRequest, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      
+      if (response.data.ResponseCode === '0') {
+        await db.query(
+          'UPDATE orders SET mpesa_checkout_id = ? WHERE id = ?',
+          [response.data.CheckoutRequestID, order[0].insertId]
+        );
+        
+        res.json({
+          success: true,
+          requiresPayment: true,
+          message: 'M-PESA STK Push sent. Check your phone to complete payment.',
+          checkoutRequestId: response.data.CheckoutRequestID,
+          orderNumber: orderNumber
+        });
+      } else {
+        throw new Error(response.data.ResponseDescription);
+      }
     }
     
   } catch (error) {
-    log(`STK Push Error: ${error.message}`, 'ERROR');
-    res.status(500).json({ 
-      success: false, 
-      error: 'Payment initiation failed. Please try again.' 
-    });
+    log(`Deploy bot error: ${error.message}`, 'ERROR');
+    res.status(500).json({ error: 'Deployment failed: ' + error.message });
+  }
+});
+
+// ============================================
+// BUY PANEL (User)
+// ============================================
+app.post('/api/buy-panel', auth, async (req, res) => {
+  try {
+    const { plan, cost, phoneNumber, useCoins } = req.body;
+    
+    log(`📝 Panel purchase request: ${plan}, Cost: ${cost}, UseCoins: ${useCoins}, Phone: ${phoneNumber}`, 'INFO');
+    
+    if (!plan || !cost) {
+      return res.status(400).json({ error: 'Plan and cost required' });
+    }
+    
+    if (useCoins) {
+      const [user] = await db.query('SELECT id, username, balance, phone FROM users WHERE id = ?', [req.user.id]);
+      
+      if (user.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      if (user[0].balance < cost) {
+        return res.status(400).json({ 
+          error: `Insufficient coins! Need ${cost} coins, you have ${user[0].balance} coins.`,
+          currentBalance: user[0].balance,
+          needed: cost - user[0].balance
+        });
+      }
+      
+      await db.query('UPDATE users SET balance = balance - ? WHERE id = ?', [cost, req.user.id]);
+      
+      const orderNumber = `PANEL${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      await db.query(
+        'INSERT INTO orders (order_number, user_id, item_type, item_name, amount, payment_method, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [orderNumber, req.user.id, 'panel', plan, cost, 'coins', 'completed']
+      );
+      
+      log(`✅ Panel purchased with coins by user ${user[0].username}`, 'SUCCESS');
+      
+      res.json({
+        success: true,
+        message: `Panel purchase successful! Admin will create your credentials and contact you on WhatsApp: ${process.env.ADMIN_WHATSAPP || '254759006509'}`,
+        orderNumber: orderNumber,
+        adminWhatsApp: process.env.ADMIN_WHATSAPP || '254759006509'
+      });
+    } else {
+      if (!phoneNumber) {
+        return res.status(400).json({ error: 'Phone number required for M-PESA payment' });
+      }
+      
+      const orderNumber = `PANEL${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      const [order] = await db.query(
+        'INSERT INTO orders (order_number, user_id, item_type, item_name, amount, phone, payment_method, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [orderNumber, req.user.id, 'panel', plan, cost, phoneNumber, 'mpesa', 'pending']
+      );
+      
+      let formattedPhone = phoneNumber.replace(/\D/g, '');
+      if (formattedPhone.startsWith('0')) formattedPhone = '254' + formattedPhone.substring(1);
+      if (!formattedPhone.startsWith('254')) formattedPhone = '254' + formattedPhone;
+      
+      const accessToken = await getMpesaAccessToken();
+      const timestamp = getTimestamp();
+      const password = generatePassword(MPESA_CONFIG.shortcode, MPESA_CONFIG.passkey, timestamp);
+      
+      const stkRequest = {
+        BusinessShortCode: MPESA_CONFIG.shortcode,
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: 'CustomerPayBillOnline',
+        Amount: Math.round(cost),
+        PartyA: formattedPhone,
+        PartyB: MPESA_CONFIG.shortcode,
+        PhoneNumber: formattedPhone,
+        CallBackURL: MPESA_CONFIG.callbackURL,
+        AccountReference: orderNumber,
+        TransactionDesc: `${plan} Panel - AmonTech1`
+      };
+      
+      const response = await axios.post(MPESA_API.stkPush, stkRequest, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      
+      if (response.data.ResponseCode === '0') {
+        await db.query(
+          'UPDATE orders SET mpesa_checkout_id = ? WHERE id = ?',
+          [response.data.CheckoutRequestID, order[0].insertId]
+        );
+        
+        res.json({
+          success: true,
+          requiresPayment: true,
+          message: 'M-PESA STK Push sent. Check your phone to complete payment.',
+          checkoutRequestId: response.data.CheckoutRequestID,
+          orderNumber: orderNumber
+        });
+      } else {
+        throw new Error(response.data.ResponseDescription);
+      }
+    }
+    
+  } catch (error) {
+    log(`Buy panel error: ${error.message}`, 'ERROR');
+    res.status(500).json({ error: 'Purchase failed: ' + error.message });
   }
 });
 
@@ -497,7 +675,6 @@ app.post('/api/mpesa/callback', async (req, res) => {
       const order = orders[0];
       
       if (stkCallback.ResultCode === 0) {
-        // Payment successful
         let receiptNumber = '';
         if (stkCallback.CallbackMetadata && stkCallback.CallbackMetadata.Item) {
           const receiptItem = stkCallback.CallbackMetadata.Item.find(i => i.Name === 'MpesaReceiptNumber');
@@ -509,10 +686,17 @@ app.post('/api/mpesa/callback', async (req, res) => {
           [receiptNumber, order.id]
         );
         
-        // Add coins to user if it's a coin purchase
         if (order.item_type === 'coins') {
           await db.query('UPDATE users SET balance = balance + ? WHERE id = ?', [order.amount, order.user_id]);
           log(`✅ Added ${order.amount} coins to user ${order.user_id}`, 'SUCCESS');
+        } else if (order.item_type === 'bot') {
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + 7);
+          await db.query(
+            'INSERT INTO bot_deployments (user_id, bot_type, expires_at, status) VALUES (?, ?, ?, ?)',
+            [order.user_id, order.item_name, expiresAt, 'active']
+          );
+          log(`✅ Bot deployed for user ${order.user_id}`, 'SUCCESS');
         }
         
         log(`✅ Payment completed for order ${order.order_number}`, 'SUCCESS');
@@ -530,132 +714,6 @@ app.post('/api/mpesa/callback', async (req, res) => {
 });
 
 // ============================================
-// CHECK PAYMENT STATUS
-// ============================================
-app.get('/api/payment/status/:orderNumber', auth, async (req, res) => {
-  try {
-    const [orders] = await db.query('SELECT * FROM orders WHERE order_number = ? AND user_id = ?', 
-      [req.params.orderNumber, req.user.id]);
-    
-    if (orders.length === 0) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-    
-    res.json({
-      orderNumber: orders[0].order_number,
-      status: orders[0].payment_status,
-      amount: orders[0].amount,
-      itemType: orders[0].item_type
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to check status' });
-  }
-});
-
-// ============================================
-// DEPLOY BOT (User - with M-PESA)
-// ============================================
-app.post('/api/deploy-bot', auth, async (req, res) => {
-  try {
-    const { botType, useCoins, phoneNumber } = req.body;
-    const BOT_COST = 20; // 20 coins per week
-    
-    if (useCoins) {
-      // Check user balance
-      const [user] = await db.query('SELECT balance FROM users WHERE id = ?', [req.user.id]);
-      
-      if (user[0].balance < BOT_COST) {
-        return res.status(400).json({ 
-          error: `Insufficient coins. Need ${BOT_COST} coins.`,
-          needsPayment: true
-        });
-      }
-      
-      // Deduct coins
-      await db.query('UPDATE users SET balance = balance - ? WHERE id = ?', [BOT_COST, req.user.id]);
-      
-      // Create deployment
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
-      
-      await db.query(
-        'INSERT INTO bot_deployments (user_id, bot_type, expires_at, status) VALUES (?, ?, ?, ?)',
-        [req.user.id, botType, expiresAt, 'active']
-      );
-      
-      res.json({
-        success: true,
-        message: `${botType} deployed successfully for 7 days using ${BOT_COST} coins!`,
-        expiresAt: expiresAt
-      });
-    } else {
-      // Use M-PESA
-      if (!phoneNumber) {
-        return res.status(400).json({ error: 'Phone number required for M-PESA payment' });
-      }
-      
-      // Initiate M-PESA payment
-      const response = await axios.post(`${req.protocol}://${req.get('host')}/api/mpesa/stkpush`, {
-        amount: BOT_COST,
-        phoneNumber: phoneNumber,
-        itemType: 'bot',
-        itemName: `${botType} Deployment (7 days)`
-      }, {
-        headers: { 'Authorization': req.headers.authorization }
-      });
-      
-      res.json({
-        success: true,
-        requiresPayment: true,
-        message: 'Complete M-PESA payment to deploy bot',
-        checkoutId: response.data.checkoutRequestId,
-        orderNumber: response.data.orderNumber
-      });
-    }
-    
-  } catch (error) {
-    res.status(500).json({ error: 'Deployment failed: ' + error.message });
-  }
-});
-
-// ============================================
-// BUY COINS (M-PESA)
-// ============================================
-app.post('/api/buy-coins', auth, async (req, res) => {
-  try {
-    const { amount, phoneNumber } = req.body;
-    
-    if (!amount || amount < 20) {
-      return res.status(400).json({ error: 'Minimum coin purchase is 20 coins' });
-    }
-    
-    if (!phoneNumber) {
-      return res.status(400).json({ error: 'Phone number required' });
-    }
-    
-    // Initiate M-PESA payment
-    const response = await axios.post(`${req.protocol}://${req.get('host')}/api/mpesa/stkpush`, {
-      amount: amount,
-      phoneNumber: phoneNumber,
-      itemType: 'coins',
-      itemName: `${amount} Coins`
-    }, {
-      headers: { 'Authorization': req.headers.authorization }
-    });
-    
-    res.json({
-      success: true,
-      message: 'M-PESA STK Push sent. Check your phone.',
-      checkoutId: response.data.checkoutRequestId,
-      orderNumber: response.data.orderNumber
-    });
-    
-  } catch (error) {
-    res.status(500).json({ error: 'Purchase failed: ' + error.message });
-  }
-});
-
-// ============================================
 // ADMIN - GET ALL USERS
 // ============================================
 app.get('/api/admin/users', auth, isAdmin, async (req, res) => {
@@ -666,32 +724,6 @@ app.get('/api/admin/users', auth, isAdmin, async (req, res) => {
     res.json({ users });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-// ============================================
-// ADMIN - ADD COINS TO USER
-// ============================================
-app.post('/api/admin/add-coins', auth, isAdmin, async (req, res) => {
-  try {
-    const { userId, amount } = req.body;
-    
-    if (!userId || !amount || amount <= 0) {
-      return res.status(400).json({ error: 'Valid user ID and amount required' });
-    }
-    
-    await db.query('UPDATE users SET balance = balance + ? WHERE id = ?', [amount, userId]);
-    
-    const [user] = await db.query('SELECT username, balance FROM users WHERE id = ?', [userId]);
-    
-    res.json({
-      success: true,
-      message: `${amount} coins added to ${user[0].username}`,
-      newBalance: user[0].balance + amount
-    });
-    
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to add coins' });
   }
 });
 

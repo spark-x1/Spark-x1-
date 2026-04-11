@@ -3,32 +3,45 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const axios = require('axios');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Create logs directory
+if (!fs.existsSync('./logs')) fs.mkdirSync('./logs');
+
+// Logger function
+const log = (message, type = 'INFO') => {
+  const timestamp = new Date().toISOString();
+  const logLine = `[${timestamp}] [${type}] ${message}\n`;
+  console.log(logLine.trim());
+  fs.appendFileSync('./logs/app.log', logLine);
+};
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '/'))); // Serve HTML files
+app.use(express.static(path.join(__dirname, '/')));
 
-console.log('🚀 AmonTech1 API Starting...');
-console.log(`📡 Port: ${PORT}`);
+log('🚀 AmonTech1 API Starting...', 'INFO');
+log(`📡 Port: ${PORT}`, 'INFO');
 
 let db = null;
 
 // ============================================
-// DATABASE CONNECTION
+// TIDB CLOUD DATABASE CONNECTION
 // ============================================
 async function connectDatabase() {
   try {
-    console.log('📦 Connecting to TiDB Cloud...');
-    console.log(`   Host: ${process.env.DB_HOST}`);
-    console.log(`   User: ${process.env.DB_USER}`);
-    console.log(`   Database: ${process.env.DB_NAME}`);
+    log('📦 Connecting to TiDB Cloud...', 'INFO');
+    log(`   Host: ${process.env.DB_HOST}`, 'INFO');
+    log(`   User: ${process.env.DB_USER}`, 'INFO');
+    log(`   Database: ${process.env.DB_NAME}`, 'INFO');
     
     db = await mysql.createPool({
       host: process.env.DB_HOST,
@@ -39,6 +52,7 @@ async function connectDatabase() {
       waitForConnections: true,
       connectionLimit: 10,
       connectTimeout: 30000,
+      enableKeepAlive: true,
       ssl: {
         minVersion: 'TLSv1.2',
         rejectUnauthorized: false
@@ -46,7 +60,7 @@ async function connectDatabase() {
     });
     
     await db.query('SELECT 1');
-    console.log('✅ TiDB Cloud connected successfully!');
+    log('✅ TiDB Cloud connected successfully!', 'SUCCESS');
     
     // Create database if not exists
     await db.query(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME}`);
@@ -90,13 +104,18 @@ async function connectDatabase() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         order_number VARCHAR(50) UNIQUE,
         user_id INT,
-        bot_type VARCHAR(50),
-        plan VARCHAR(50),
+        item_type VARCHAR(50),
+        item_name VARCHAR(100),
         amount INT,
         phone VARCHAR(20),
-        status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+        payment_method VARCHAR(20) DEFAULT 'mpesa',
+        payment_status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+        mpesa_checkout_id VARCHAR(100),
+        mpesa_receipt VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_order_number (order_number),
+        INDEX idx_payment_status (payment_status)
       )
     `);
     
@@ -110,40 +129,96 @@ async function connectDatabase() {
         expires_at TIMESTAMP,
         status ENUM('active', 'expired', 'suspended') DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user_id (user_id)
+      )
+    `);
+    
+    // Create transactions table
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        order_id INT,
+        transaction_type VARCHAR(50),
+        result_code INT,
+        result_desc VARCHAR(255),
+        amount INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
       )
     `);
     
     // Create admin user if not exists
     const [admins] = await db.query('SELECT * FROM users WHERE role = "admin" LIMIT 1');
     if (admins.length === 0) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
+      const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10);
       await db.query(
         'INSERT INTO users (username, password, name, email, phone, role, balance) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ['admin', hashedPassword, 'Super Admin', 'sparkxtechnologies254@gmail.com', '254759006509', 'admin', 10000]
+        ['admin', hashedPassword, 'Super Admin', process.env.ADMIN_EMAIL, process.env.ADMIN_PHONE, 'admin', 10000]
       );
-      console.log('✅ Admin user created: admin / admin123');
+      log('✅ Admin user created: admin / admin123', 'SUCCESS');
     }
     
-    // Create test user if not exists
-    const [testUser] = await db.query('SELECT * FROM users WHERE username = "testuser" LIMIT 1');
-    if (testUser.length === 0) {
-      const hashedPassword = await bcrypt.hash('test123', 10);
-      await db.query(
-        'INSERT INTO users (username, password, name, phone, role, balance) VALUES (?, ?, ?, ?, ?, ?)',
-        ['testuser', hashedPassword, 'Test User', '254712345678', 'user', 500]
-      );
-      console.log('✅ Test user created: testuser / test123');
-    }
-    
-    console.log('✅ All tables ready!');
+    log('✅ All tables ready!', 'SUCCESS');
     return true;
     
   } catch (error) {
-    console.error('❌ Database error:', error.message);
-    console.error('Please check your .env file and TiDB Cloud credentials');
+    log(`❌ Database error: ${error.message}`, 'ERROR');
     return false;
   }
+}
+
+// ============================================
+// M-PESA CONFIGURATION
+// ============================================
+const MPESA_CONFIG = {
+  consumerKey: process.env.MPESA_CONSUMER_KEY,
+  consumerSecret: process.env.MPESA_CONSUMER_SECRET,
+  passkey: process.env.MPESA_PASSKEY,
+  shortcode: process.env.MPESA_SHORTCODE,
+  environment: process.env.MPESA_ENVIRONMENT || 'sandbox',
+  callbackURL: `${process.env.CALLBACK_URL || `https://${process.env.RENDER_EXTERNAL_URL || 'localhost:' + PORT}`}/api/mpesa/callback`
+};
+
+const MPESA_API = {
+  auth: MPESA_CONFIG.environment === 'sandbox' 
+    ? 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+    : 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
+  stkPush: MPESA_CONFIG.environment === 'sandbox'
+    ? 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+    : 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
+  query: MPESA_CONFIG.environment === 'sandbox'
+    ? 'https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query'
+    : 'https://api.safaricom.co.ke/mpesa/stkpushquery/v1/query'
+};
+
+async function getMpesaAccessToken() {
+  try {
+    const auth = Buffer.from(`${MPESA_CONFIG.consumerKey}:${MPESA_CONFIG.consumerSecret}`).toString('base64');
+    const response = await axios.get(MPESA_API.auth, {
+      headers: { Authorization: `Basic ${auth}` }
+    });
+    log('✅ M-PESA access token obtained', 'SUCCESS');
+    return response.data.access_token;
+  } catch (error) {
+    log(`❌ M-PESA Token Error: ${error.response?.data?.errorMessage || error.message}`, 'ERROR');
+    throw error;
+  }
+}
+
+function getTimestamp() {
+  const date = new Date();
+  return date.getFullYear() +
+    String(date.getMonth() + 1).padStart(2, '0') +
+    String(date.getDate()).padStart(2, '0') +
+    String(date.getHours()).padStart(2, '0') +
+    String(date.getMinutes()).padStart(2, '0') +
+    String(date.getSeconds()).padStart(2, '0');
+}
+
+function generatePassword(shortcode, passkey, timestamp) {
+  const str = shortcode + passkey + timestamp;
+  return Buffer.from(str).toString('base64');
 }
 
 // ============================================
@@ -175,22 +250,14 @@ app.get('/api/health', async (req, res) => {
       res.json({ 
         status: 'online', 
         database: 'connected',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      });
-    } else {
-      res.json({ 
-        status: 'online', 
-        database: 'connecting...',
+        mpesa: MPESA_CONFIG.environment,
         timestamp: new Date().toISOString()
       });
+    } else {
+      res.json({ status: 'online', database: 'connecting...' });
     }
   } catch (error) {
-    res.json({ 
-      status: 'online', 
-      database: 'error',
-      error: error.message
-    });
+    res.json({ status: 'online', database: 'error', error: error.message });
   }
 });
 
@@ -199,11 +266,9 @@ app.get('/api/health', async (req, res) => {
 // ============================================
 const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  
   if (!token) {
     return res.status(401).json({ error: 'Access denied. No token provided.' });
   }
-  
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
@@ -231,7 +296,6 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ error: 'Username and password required' });
     }
     
-    // Check if user exists
     const [existing] = await db.query('SELECT id FROM users WHERE username = ?', [username]);
     if (existing.length > 0) {
       return res.status(400).json({ error: 'Username already exists' });
@@ -253,18 +317,12 @@ app.post('/api/register', async (req, res) => {
       success: true,
       message: 'Registration successful',
       token,
-      user: { 
-        id: result.insertId, 
-        username, 
-        name: name || username, 
-        role: 'user',
-        balance: 0
-      }
+      user: { id: result.insertId, username, name: name || username, role: 'user', balance: 0 }
     });
     
   } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Registration failed: ' + error.message });
+    log(`Register error: ${error.message}`, 'ERROR');
+    res.status(500).json({ error: 'Registration failed' });
   }
 });
 
@@ -275,10 +333,7 @@ app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     
-    const [users] = await db.query(
-      'SELECT * FROM users WHERE username = ? OR email = ?',
-      [username, username]
-    );
+    const [users] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
     
     if (users.length === 0) {
       return res.status(401).json({ error: 'Invalid username or password' });
@@ -313,8 +368,7 @@ app.post('/api/login', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed: ' + error.message });
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
@@ -350,8 +404,254 @@ app.get('/api/dashboard', auth, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Dashboard error:', error);
     res.status(500).json({ error: 'Failed to load dashboard' });
+  }
+});
+
+// ============================================
+// M-PESA STK PUSH (Payment)
+// ============================================
+app.post('/api/mpesa/stkpush', auth, async (req, res) => {
+  try {
+    const { amount, phoneNumber, itemType, itemName } = req.body;
+    
+    if (!amount || !phoneNumber || !itemType) {
+      return res.status(400).json({ error: 'Amount, phone number and item type required' });
+    }
+    
+    // Format phone number
+    let formattedPhone = phoneNumber.replace(/\D/g, '');
+    if (formattedPhone.startsWith('0')) formattedPhone = '254' + formattedPhone.substring(1);
+    if (!formattedPhone.startsWith('254')) formattedPhone = '254' + formattedPhone;
+    
+    // Create order
+    const orderNumber = `AMON${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const [order] = await db.query(
+      'INSERT INTO orders (order_number, user_id, item_type, item_name, amount, phone, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [orderNumber, req.user.id, itemType, itemName || itemType, amount, formattedPhone, 'pending']
+    );
+    
+    // Send STK Push
+    const accessToken = await getMpesaAccessToken();
+    const timestamp = getTimestamp();
+    const password = generatePassword(MPESA_CONFIG.shortcode, MPESA_CONFIG.passkey, timestamp);
+    
+    const stkRequest = {
+      BusinessShortCode: MPESA_CONFIG.shortcode,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: 'CustomerPayBillOnline',
+      Amount: Math.round(amount),
+      PartyA: formattedPhone,
+      PartyB: MPESA_CONFIG.shortcode,
+      PhoneNumber: formattedPhone,
+      CallBackURL: MPESA_CONFIG.callbackURL,
+      AccountReference: orderNumber,
+      TransactionDesc: `${itemType} - AmonTech1`
+    };
+    
+    log(`📤 Sending STK Push for ${orderNumber} to ${formattedPhone}`, 'INFO');
+    
+    const response = await axios.post(MPESA_API.stkPush, stkRequest, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    
+    if (response.data.ResponseCode === '0') {
+      await db.query(
+        'UPDATE orders SET mpesa_checkout_id = ? WHERE id = ?',
+        [response.data.CheckoutRequestID, order[0].insertId]
+      );
+      
+      res.json({
+        success: true,
+        message: 'STK Push sent. Check your phone for M-PESA prompt.',
+        checkoutRequestId: response.data.CheckoutRequestID,
+        orderNumber: orderNumber
+      });
+    } else {
+      throw new Error(response.data.ResponseDescription);
+    }
+    
+  } catch (error) {
+    log(`STK Push Error: ${error.message}`, 'ERROR');
+    res.status(500).json({ 
+      success: false, 
+      error: 'Payment initiation failed. Please try again.' 
+    });
+  }
+});
+
+// ============================================
+// M-PESA CALLBACK (Webhook)
+// ============================================
+app.post('/api/mpesa/callback', async (req, res) => {
+  try {
+    log('📞 M-PESA Callback received', 'INFO');
+    
+    const { Body } = req.body;
+    const { stkCallback } = Body;
+    
+    const [orders] = await db.query('SELECT * FROM orders WHERE mpesa_checkout_id = ?', [stkCallback.CheckoutRequestID]);
+    
+    if (orders.length > 0) {
+      const order = orders[0];
+      
+      if (stkCallback.ResultCode === 0) {
+        // Payment successful
+        let receiptNumber = '';
+        if (stkCallback.CallbackMetadata && stkCallback.CallbackMetadata.Item) {
+          const receiptItem = stkCallback.CallbackMetadata.Item.find(i => i.Name === 'MpesaReceiptNumber');
+          if (receiptItem) receiptNumber = receiptItem.Value;
+        }
+        
+        await db.query(
+          'UPDATE orders SET payment_status = "completed", mpesa_receipt = ? WHERE id = ?',
+          [receiptNumber, order.id]
+        );
+        
+        // Add coins to user if it's a coin purchase
+        if (order.item_type === 'coins') {
+          await db.query('UPDATE users SET balance = balance + ? WHERE id = ?', [order.amount, order.user_id]);
+          log(`✅ Added ${order.amount} coins to user ${order.user_id}`, 'SUCCESS');
+        }
+        
+        log(`✅ Payment completed for order ${order.order_number}`, 'SUCCESS');
+      } else {
+        await db.query('UPDATE orders SET payment_status = "failed" WHERE id = ?', [order.id]);
+        log(`❌ Payment failed: ${stkCallback.ResultDesc}`, 'ERROR');
+      }
+    }
+    
+    res.json({ ResultCode: 0, ResultDesc: 'Success' });
+  } catch (error) {
+    log(`Callback error: ${error.message}`, 'ERROR');
+    res.json({ ResultCode: 1, ResultDesc: 'Failed' });
+  }
+});
+
+// ============================================
+// CHECK PAYMENT STATUS
+// ============================================
+app.get('/api/payment/status/:orderNumber', auth, async (req, res) => {
+  try {
+    const [orders] = await db.query('SELECT * FROM orders WHERE order_number = ? AND user_id = ?', 
+      [req.params.orderNumber, req.user.id]);
+    
+    if (orders.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    res.json({
+      orderNumber: orders[0].order_number,
+      status: orders[0].payment_status,
+      amount: orders[0].amount,
+      itemType: orders[0].item_type
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to check status' });
+  }
+});
+
+// ============================================
+// DEPLOY BOT (User - with M-PESA)
+// ============================================
+app.post('/api/deploy-bot', auth, async (req, res) => {
+  try {
+    const { botType, useCoins, phoneNumber } = req.body;
+    const BOT_COST = 20; // 20 coins per week
+    
+    if (useCoins) {
+      // Check user balance
+      const [user] = await db.query('SELECT balance FROM users WHERE id = ?', [req.user.id]);
+      
+      if (user[0].balance < BOT_COST) {
+        return res.status(400).json({ 
+          error: `Insufficient coins. Need ${BOT_COST} coins.`,
+          needsPayment: true
+        });
+      }
+      
+      // Deduct coins
+      await db.query('UPDATE users SET balance = balance - ? WHERE id = ?', [BOT_COST, req.user.id]);
+      
+      // Create deployment
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      
+      await db.query(
+        'INSERT INTO bot_deployments (user_id, bot_type, expires_at, status) VALUES (?, ?, ?, ?)',
+        [req.user.id, botType, expiresAt, 'active']
+      );
+      
+      res.json({
+        success: true,
+        message: `${botType} deployed successfully for 7 days using ${BOT_COST} coins!`,
+        expiresAt: expiresAt
+      });
+    } else {
+      // Use M-PESA
+      if (!phoneNumber) {
+        return res.status(400).json({ error: 'Phone number required for M-PESA payment' });
+      }
+      
+      // Initiate M-PESA payment
+      const response = await axios.post(`${req.protocol}://${req.get('host')}/api/mpesa/stkpush`, {
+        amount: BOT_COST,
+        phoneNumber: phoneNumber,
+        itemType: 'bot',
+        itemName: `${botType} Deployment (7 days)`
+      }, {
+        headers: { 'Authorization': req.headers.authorization }
+      });
+      
+      res.json({
+        success: true,
+        requiresPayment: true,
+        message: 'Complete M-PESA payment to deploy bot',
+        checkoutId: response.data.checkoutRequestId,
+        orderNumber: response.data.orderNumber
+      });
+    }
+    
+  } catch (error) {
+    res.status(500).json({ error: 'Deployment failed: ' + error.message });
+  }
+});
+
+// ============================================
+// BUY COINS (M-PESA)
+// ============================================
+app.post('/api/buy-coins', auth, async (req, res) => {
+  try {
+    const { amount, phoneNumber } = req.body;
+    
+    if (!amount || amount < 20) {
+      return res.status(400).json({ error: 'Minimum coin purchase is 20 coins' });
+    }
+    
+    if (!phoneNumber) {
+      return res.status(400).json({ error: 'Phone number required' });
+    }
+    
+    // Initiate M-PESA payment
+    const response = await axios.post(`${req.protocol}://${req.get('host')}/api/mpesa/stkpush`, {
+      amount: amount,
+      phoneNumber: phoneNumber,
+      itemType: 'coins',
+      itemName: `${amount} Coins`
+    }, {
+      headers: { 'Authorization': req.headers.authorization }
+    });
+    
+    res.json({
+      success: true,
+      message: 'M-PESA STK Push sent. Check your phone.',
+      checkoutId: response.data.checkoutRequestId,
+      orderNumber: response.data.orderNumber
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: 'Purchase failed: ' + error.message });
   }
 });
 
@@ -380,10 +680,7 @@ app.post('/api/admin/add-coins', auth, isAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Valid user ID and amount required' });
     }
     
-    await db.query(
-      'UPDATE users SET balance = balance + ? WHERE id = ?',
-      [amount, userId]
-    );
+    await db.query('UPDATE users SET balance = balance + ? WHERE id = ?', [amount, userId]);
     
     const [user] = await db.query('SELECT username, balance FROM users WHERE id = ?', [userId]);
     
@@ -410,7 +707,6 @@ app.get('/api/admin/panels', auth, isAdmin, async (req, res) => {
       ORDER BY pc.created_at DESC
     `);
     
-    // Don't send actual passwords, just placeholder
     const safePanels = panels.map(p => ({
       ...p,
       password_display: '••••••••'
@@ -468,105 +764,44 @@ app.delete('/api/admin/panels/:id', auth, isAdmin, async (req, res) => {
 });
 
 // ============================================
+// ADMIN - GET ALL ORDERS
+// ============================================
+app.get('/api/admin/orders', auth, isAdmin, async (req, res) => {
+  try {
+    const [orders] = await db.query(`
+      SELECT o.*, u.username as user_name 
+      FROM orders o 
+      LEFT JOIN users u ON o.user_id = u.id 
+      ORDER BY o.created_at DESC
+      LIMIT 100
+    `);
+    res.json({ orders });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// ============================================
 // ADMIN - GET STATS
 // ============================================
 app.get('/api/admin/stats', auth, isAdmin, async (req, res) => {
   try {
     const [userCount] = await db.query('SELECT COUNT(*) as total FROM users');
-    const [adminCount] = await db.query('SELECT COUNT(*) as total FROM users WHERE role = "admin"');
     const [panelCount] = await db.query('SELECT COUNT(*) as total FROM panel_credentials');
     const [deploymentCount] = await db.query('SELECT COUNT(*) as total FROM bot_deployments');
+    const [orderStats] = await db.query('SELECT COUNT(*) as total, COALESCE(SUM(amount), 0) as revenue FROM orders WHERE payment_status = "completed"');
     const [totalBalance] = await db.query('SELECT SUM(balance) as total FROM users');
     
     res.json({
       totalUsers: userCount[0].total,
-      totalAdmins: adminCount[0].total,
       totalPanels: panelCount[0].total,
       totalDeployments: deploymentCount[0].total,
-      totalRevenue: totalBalance[0].total || 0
+      totalOrders: orderStats[0].total,
+      totalRevenue: orderStats[0].revenue,
+      totalCoinsInCirculation: totalBalance[0].total || 0
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch stats' });
-  }
-});
-
-// ============================================
-// DEPLOY BOT (User)
-// ============================================
-app.post('/api/deploy-bot', auth, async (req, res) => {
-  try {
-    const { botType, cost } = req.body;
-    
-    if (!botType || !cost) {
-      return res.status(400).json({ error: 'Bot type and cost required' });
-    }
-    
-    // Check user balance
-    const [user] = await db.query('SELECT balance FROM users WHERE id = ?', [req.user.id]);
-    
-    if (user[0].balance < cost) {
-      return res.status(400).json({ 
-        error: `Insufficient balance. Need ${cost} coins, you have ${user[0].balance} coins.`
-      });
-    }
-    
-    // Deduct coins
-    await db.query('UPDATE users SET balance = balance - ? WHERE id = ?', [cost, req.user.id]);
-    
-    // Create deployment
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
-    
-    const [result] = await db.query(
-      'INSERT INTO bot_deployments (user_id, bot_type, expires_at, status) VALUES (?, ?, ?, ?)',
-      [req.user.id, botType, expiresAt, 'active']
-    );
-    
-    res.json({
-      success: true,
-      message: `${botType} deployed successfully for 7 days!`,
-      deploymentId: result.insertId,
-      expiresAt: expiresAt
-    });
-    
-  } catch (error) {
-    res.status(500).json({ error: 'Deployment failed: ' + error.message });
-  }
-});
-
-// ============================================
-// BUY PANEL (User)
-// ============================================
-app.post('/api/buy-panel', auth, async (req, res) => {
-  try {
-    const { plan, cost } = req.body;
-    
-    const [user] = await db.query('SELECT balance FROM users WHERE id = ?', [req.user.id]);
-    
-    if (user[0].balance < cost) {
-      return res.status(400).json({ 
-        error: `Insufficient balance. Need ${cost} coins.`
-      });
-    }
-    
-    // Deduct coins
-    await db.query('UPDATE users SET balance = balance - ? WHERE id = ?', [cost, req.user.id]);
-    
-    // Create order
-    const orderNumber = `PANEL${Date.now()}${Math.floor(Math.random() * 1000)}`;
-    await db.query(
-      'INSERT INTO orders (order_number, user_id, plan, amount, status) VALUES (?, ?, ?, ?, ?)',
-      [orderNumber, req.user.id, plan, cost, 'completed']
-    );
-    
-    res.json({
-      success: true,
-      message: `Panel purchase successful! Admin will create your credentials and contact you on WhatsApp.`,
-      orderNumber: orderNumber
-    });
-    
-  } catch (error) {
-    res.status(500).json({ error: 'Purchase failed: ' + error.message });
   }
 });
 
@@ -576,23 +811,7 @@ app.post('/api/buy-panel', auth, async (req, res) => {
 app.use('*', (req, res) => {
   res.status(404).json({
     error: 'Endpoint not found',
-    message: `Cannot ${req.method} ${req.originalUrl}`,
-    available_endpoints: [
-      'GET /',
-      'GET /user.html',
-      'GET /admin.html',
-      'GET /panel.html',
-      'GET /api/health',
-      'POST /api/register',
-      'POST /api/login',
-      'GET /api/dashboard (需要认证)',
-      'GET /api/admin/users (需要认证)',
-      'GET /api/admin/panels (需要认证)',
-      'POST /api/admin/create-panel (需要认证)',
-      'POST /api/admin/add-coins (需要认证)',
-      'POST /api/deploy-bot (需要认证)',
-      'POST /api/buy-panel (需要认证)'
-    ]
+    message: `Cannot ${req.method} ${req.originalUrl}`
   });
 });
 
@@ -606,15 +825,15 @@ connectDatabase().then((connected) => {
 ║                    🚀 AMONTECH1 API RUNNING                       ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  ✅ Server: http://localhost:${PORT}                              ║
-║  🗄️  Database: ${connected ? 'TiDB Cloud ✅' : 'Offline ⚠️'}        ║
+║  🗄️  Database: TiDB Cloud ${connected ? '✅' : '❌'}                ║
+║  💳 M-PESA: ${MPESA_CONFIG.environment.toUpperCase()} Mode        ║
 ║  👤 Admin: admin / admin123                                       ║
-║  🧪 Test: testuser / test123                                      ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  📄 Pages:                                                        ║
-║     - Main:     http://localhost:${PORT}/                         ║
-║     - User:     http://localhost:${PORT}/user.html                ║
-║     - Admin:    http://localhost:${PORT}/admin.html               ║
-║     - Panel:    http://localhost:${PORT}/panel.html               ║
+║     - Main:  http://localhost:${PORT}/                            ║
+║     - User:  http://localhost:${PORT}/user.html                   ║
+║     - Admin: http://localhost:${PORT}/admin.html                  ║
+║     - Panel: http://localhost:${PORT}/panel.html                  ║
 ╚══════════════════════════════════════════════════════════════════╝
     `);
   });

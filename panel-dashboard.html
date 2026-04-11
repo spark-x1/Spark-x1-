@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amon Panel - Dashboard</title>
+    <title>Amon Panel - Server Control</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #0a0a0a; font-family: 'Poppins', sans-serif; color: #fff; }
+        
         .navbar {
             background: #000;
             padding: 15px 30px;
@@ -15,77 +16,587 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 2px solid #00ff88;
+            flex-wrap: wrap;
+            gap: 15px;
         }
+        
         .logo { font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #00ff88, #00cc66); -webkit-background-clip: text; background-clip: text; color: transparent; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 30px; }
-        .server-card {
-            background: #1a1a2e;
-            border-radius: 20px;
-            padding: 25px;
-            border: 1px solid #00ff8844;
-            margin-bottom: 20px;
-        }
-        .server-status {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            margin-bottom: 10px;
-            background: #00ff8820;
-            color: #00ff88;
-            border: 1px solid #00ff88;
-        }
-        .iframe-container {
-            margin-top: 30px;
-            border-radius: 20px;
-            overflow: hidden;
-            border: 1px solid #00ff8844;
-            background: #fff;
-        }
-        iframe {
-            width: 100%;
-            height: 600px;
-            border: none;
-        }
-        .back-btn {
+        
+        .back-btn, .refresh-btn {
             background: #333;
             border: none;
             padding: 10px 20px;
             border-radius: 50px;
             color: #fff;
             cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover, .refresh-btn:hover { background: #00ff88; color: #000; }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px; }
+        
+        /* Server Cards */
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .server-card {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid #00ff8844;
+            transition: all 0.3s;
+        }
+        
+        .server-card:hover { transform: translateY(-5px); border-color: #00ff88; }
+        
+        .server-status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .status-running { background: #00ff8820; color: #00ff88; border: 1px solid #00ff88; }
+        .status-offline { background: #ff444420; color: #ff8888; border: 1px solid #ff4444; }
+        .status-starting { background: #ffaa0020; color: #ffaa00; border: 1px solid #ffaa00; }
+        
+        .server-title {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .server-title i { color: #00ff88; margin-right: 10px; }
+        
+        .server-info {
+            color: #aaa;
+            font-size: 13px;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+        }
+        
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .control-btn {
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .control-btn.start { background: #00ff88; color: #000; }
+        .control-btn.stop { background: #ff4444; color: #fff; }
+        .control-btn.restart { background: #ffaa00; color: #000; }
+        .control-btn.kill { background: #8B0000; color: #fff; }
+        
+        .control-btn:hover { transform: scale(1.05); opacity: 0.9; }
+        
+        /* Console Section */
+        .console-section {
+            background: #0a0a0a;
+            border-radius: 20px;
+            border: 1px solid #00ff8844;
+            margin-top: 30px;
+            overflow: hidden;
+        }
+        
+        .console-header {
+            background: #1a1a2e;
+            padding: 15px 20px;
+            border-bottom: 1px solid #00ff8844;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .console-title { font-weight: bold; color: #00ff88; }
+        
+        .console-clear {
+            background: #333;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 20px;
+            color: #fff;
+            cursor: pointer;
+        }
+        
+        .console-content {
+            background: #000;
+            padding: 20px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #0f0;
+        }
+        
+        .console-line {
+            margin: 3px 0;
+            border-left: 2px solid #00ff88;
+            padding-left: 10px;
+        }
+        
+        /* File Manager */
+        .file-section {
+            background: #1a1a2e;
+            border-radius: 20px;
+            border: 1px solid #00ff8844;
+            margin-top: 30px;
+            overflow: hidden;
+        }
+        
+        .file-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #00ff8844;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .file-list {
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+        }
+        
+        .file-item:hover { background: rgba(0,255,136,0.1); }
+        
+        .file-name i { margin-right: 10px; color: #00ff88; }
+        
+        .file-actions button {
+            background: #333;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 15px;
+            color: #fff;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        
+        .upload-area {
+            border: 2px dashed #00ff8844;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover { border-color: #00ff88; background: rgba(0,255,136,0.05); }
+        
+        .upload-input { display: none; }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid #00ff88;
+        }
+        
+        .modal-content textarea {
+            width: 100%;
+            height: 200px;
+            background: #0a0a0a;
+            border: 1px solid #00ff8844;
+            border-radius: 10px;
+            color: #fff;
+            padding: 10px;
+            font-family: monospace;
+            margin: 15px 0;
+        }
+        
+        .close-modal {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #ff4444;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .navbar { flex-direction: column; text-align: center; }
+            .container { padding: 20px; }
+            .control-buttons { justify-content: center; }
         }
     </style>
 </head>
 <body>
     <div class="navbar">
         <div class="logo"><i class="fas fa-gamepad"></i> AMON PANEL</div>
-        <button class="back-btn" onclick="window.location.href='/user.html'">← Back to Dashboard</button>
+        <div>
+            <button class="refresh-btn" onclick="refreshData()"><i class="fas fa-sync-alt"></i> Refresh</button>
+            <button class="back-btn" onclick="window.location.href='/user.html'"><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+        </div>
     </div>
     
     <div class="container">
-        <div class="server-card">
-            <div class="server-status"><i class="fas fa-circle"></i> CONNECTED</div>
-            <h3><i class="fas fa-server"></i> Your Game Server</h3>
-            <p>Panel access loaded below using your credentials.</p>
+        <!-- Server Grid -->
+        <div class="server-grid" id="serverGrid">
+            <div class="server-card">
+                <div class="server-status status-running" id="serverStatus">
+                    <i class="fas fa-circle"></i> RUNNING
+                </div>
+                <div class="server-title">
+                    <i class="fas fa-star-of-life"></i> NOVA MD - Server
+                </div>
+                <div class="server-info" id="serverInfo">
+                    <i class="fas fa-microchip"></i> CPU: 25% | <i class="fas fa-memory"></i> RAM: 512MB / 2GB<br>
+                    <i class="fas fa-hdd"></i> Disk: 5GB / 20GB | <i class="fas fa-network-wired"></i> Port: 25565
+                </div>
+                <div class="control-buttons">
+                    <button class="control-btn start" onclick="sendCommand('start')"><i class="fas fa-play"></i> Start</button>
+                    <button class="control-btn stop" onclick="sendCommand('stop')"><i class="fas fa-stop"></i> Stop</button>
+                    <button class="control-btn restart" onclick="sendCommand('restart')"><i class="fas fa-sync-alt"></i> Restart</button>
+                    <button class="control-btn kill" onclick="sendCommand('kill')"><i class="fas fa-skull"></i> Kill</button>
+                </div>
+            </div>
         </div>
         
-        <div class="iframe-container">
-            <iframe id="panelIframe" src="about:blank" title="Panel Control"></iframe>
+        <!-- Console Section -->
+        <div class="console-section">
+            <div class="console-header">
+                <span class="console-title"><i class="fas fa-terminal"></i> Server Console</span>
+                <button class="console-clear" onclick="clearConsole()"><i class="fas fa-trash"></i> Clear</button>
+            </div>
+            <div class="console-content" id="consoleContent">
+                <div class="console-line">[2024-01-15 10:30:00] Server started successfully</div>
+                <div class="console-line">[2024-01-15 10:30:01] Listening on port 25565</div>
+                <div class="console-line">[2024-01-15 10:30:05] Ready for connections</div>
+            </div>
+        </div>
+        
+        <!-- Command Input -->
+        <div class="console-section" style="margin-top: 15px;">
+            <div class="console-header">
+                <span class="console-title"><i class="fas fa-keyboard"></i> Send Command</span>
+            </div>
+            <div style="padding: 15px; display: flex; gap: 10px;">
+                <input type="text" id="commandInput" class="input-field" placeholder="Type command here..." 
+                       style="flex:1; padding: 12px; background:#222; border:1px solid #00ff8844; border-radius:50px; color:#fff;">
+                <button class="control-btn start" onclick="sendCustomCommand()" style="margin:0">Send</button>
+            </div>
+        </div>
+        
+        <!-- File Manager Section -->
+        <div class="file-section">
+            <div class="file-header">
+                <span class="console-title"><i class="fas fa-folder"></i> File Manager</span>
+                <button class="console-clear" onclick="refreshFiles()"><i class="fas fa-sync-alt"></i> Refresh</button>
+            </div>
+            
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 30px;"></i>
+                <p>Click to upload file</p>
+                <input type="file" id="fileInput" class="upload-input" onchange="uploadFile()">
+            </div>
+            
+            <div class="file-list" id="fileList">
+                <div class="file-item">
+                    <span class="file-name"><i class="fas fa-folder"></i> plugins/</span>
+                    <span class="file-actions">
+                        <button onclick="openFolder('plugins')">Open</button>
+                    </span>
+                </div>
+                <div class="file-item">
+                    <span class="file-name"><i class="fas fa-file"></i> server.properties</span>
+                    <span class="file-actions">
+                        <button onclick="editFile('server.properties')">Edit</button>
+                        <button onclick="downloadFile('server.properties')">Download</button>
+                    </span>
+                </div>
+                <div class="file-item">
+                    <span class="file-name"><i class="fas fa-file"></i> eula.txt</span>
+                    <span class="file-actions">
+                        <button onclick="editFile('eula.txt')">Edit</button>
+                        <button onclick="downloadFile('eula.txt')">Download</button>
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
     
-    <script>
-        // Get the stored panel API URL
-        const panelApiUrl = localStorage.getItem('panelApiUrl');
-        const panelUsername = localStorage.getItem('panelUsername');
-        
-        if (panelApiUrl) {
-            // Load the real panel in iframe (URL is hidden from user)
-            document.getElementById('panelIframe').src = panelApiUrl;
-        } else {
-            document.getElementById('panelIframe').src = 'https://panel.spaceify.eu';
+    <!-- Edit File Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeEditModal()">&times;</span>
+            <h3 id="editFileName">Edit File</h3>
+            <textarea id="fileContent" placeholder="File content..."></textarea>
+            <button class="btn" onclick="saveFile()">Save Changes</button>
+        </div>
+    </div>
+    
+    <style>
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            background: #222;
+            border: 1px solid #00ff8844;
+            border-radius: 50px;
+            color: #fff;
         }
+        .input-field:focus { outline: none; border-color: #00ff88; }
+    </style>
+    
+    <script>
+        // API Configuration
+        const API_URL = window.location.origin;
+        let currentServerId = 1;
+        let panelToken = localStorage.getItem('panelToken');
+        let panelApiUrl = localStorage.getItem('panelApiUrl');
+        let panelApiKey = localStorage.getItem('panelApiKey');
+        
+        // Simulated server status (in real implementation, fetch from actual panel API)
+        let serverRunning = true;
+        let consoleLines = [
+            "[2024-01-15 10:30:00] Server started successfully",
+            "[2024-01-15 10:30:01] Listening on port 25565",
+            "[2024-01-15 10:30:05] Ready for connections"
+        ];
+        
+        // Update console display
+        function updateConsole() {
+            const consoleDiv = document.getElementById('consoleContent');
+            consoleDiv.innerHTML = consoleLines.map(line => `<div class="console-line">${line}</div>`).join('');
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        // Send power command to server
+        async function sendCommand(action) {
+            const statusDiv = document.getElementById('serverStatus');
+            const actions = {
+                start: 'Starting server...',
+                stop: 'Stopping server...',
+                restart: 'Restarting server...',
+                kill: 'Killing server...'
+            };
+            
+            statusDiv.innerHTML = `<i class="fas fa-circle"></i> ${actions[action].toUpperCase()}`;
+            statusDiv.className = 'server-status status-starting';
+            
+            // Add to console
+            consoleLines.push(`[${new Date().toLocaleString()}] Executing: ${action} command`);
+            updateConsole();
+            
+            // Simulate action (replace with actual API call)
+            setTimeout(() => {
+                if (action === 'start') {
+                    serverRunning = true;
+                    statusDiv.innerHTML = '<i class="fas fa-circle"></i> RUNNING';
+                    statusDiv.className = 'server-status status-running';
+                    consoleLines.push(`[${new Date().toLocaleString()}] Server started successfully`);
+                } else if (action === 'stop' || action === 'kill') {
+                    serverRunning = false;
+                    statusDiv.innerHTML = '<i class="fas fa-circle"></i> OFFLINE';
+                    statusDiv.className = 'server-status status-offline';
+                    consoleLines.push(`[${new Date().toLocaleString()}] Server stopped`);
+                } else if (action === 'restart') {
+                    consoleLines.push(`[${new Date().toLocaleString()}] Server restarting...`);
+                    setTimeout(() => {
+                        serverRunning = true;
+                        statusDiv.innerHTML = '<i class="fas fa-circle"></i> RUNNING';
+                        statusDiv.className = 'server-status status-running';
+                        consoleLines.push(`[${new Date().toLocaleString()}] Server restarted successfully`);
+                        updateConsole();
+                    }, 3000);
+                }
+                updateConsole();
+            }, 1000);
+            
+            // Actual API call to your panel (uncomment when API is ready)
+            /*
+            try {
+                const response = await fetch(`${panelApiUrl}/client/servers/${currentServerId}/power`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${panelApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ signal: action })
+                });
+                if (response.ok) {
+                    consoleLines.push(`[${new Date().toLocaleString()}] ${action} command sent successfully`);
+                }
+            } catch (error) {
+                consoleLines.push(`[${new Date().toLocaleString()}] Error: ${error.message}`);
+            }
+            updateConsole();
+            */
+        }
+        
+        // Send custom command
+        function sendCustomCommand() {
+            const command = document.getElementById('commandInput').value;
+            if (!command) return;
+            
+            consoleLines.push(`[${new Date().toLocaleString()}] > ${command}`);
+            consoleLines.push(`[${new Date().toLocaleString()}] Command executed`);
+            updateConsole();
+            document.getElementById('commandInput').value = '';
+            
+            // Actual API call for command
+            /*
+            fetch(`${panelApiUrl}/client/servers/${currentServerId}/command`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${panelApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ command: command })
+            });
+            */
+        }
+        
+        // Clear console
+        function clearConsole() {
+            consoleLines = [];
+            updateConsole();
+        }
+        
+        // Refresh data
+        function refreshData() {
+            consoleLines.push(`[${new Date().toLocaleString()}] Refreshing server data...`);
+            updateConsole();
+            // Add actual API call to get server stats here
+        }
+        
+        // File Manager Functions
+        function refreshFiles() {
+            consoleLines.push(`[${new Date().toLocaleString()}] Refreshing file list...`);
+            updateConsole();
+        }
+        
+        function openFolder(folderName) {
+            consoleLines.push(`[${new Date().toLocaleString()}] Opening folder: ${folderName}`);
+            updateConsole();
+        }
+        
+        function editFile(fileName) {
+            document.getElementById('editFileName').innerText = `Edit: ${fileName}`;
+            document.getElementById('fileContent').value = `# Edit ${fileName}\n# Make your changes here\n`;
+            document.getElementById('editModal').style.display = 'flex';
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+        
+        function saveFile() {
+            const content = document.getElementById('fileContent').value;
+            consoleLines.push(`[${new Date().toLocaleString()}] File saved`);
+            updateConsole();
+            closeEditModal();
+        }
+        
+        function downloadFile(fileName) {
+            consoleLines.push(`[${new Date().toLocaleString()}] Downloading: ${fileName}`);
+            updateConsole();
+            // Create dummy download
+            const blob = new Blob(["Sample file content"], {type: "text/plain"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (file) {
+                consoleLines.push(`[${new Date().toLocaleString()}] Uploading: ${file.name}`);
+                updateConsole();
+                // Simulate upload
+                setTimeout(() => {
+                    consoleLines.push(`[${new Date().toLocaleString()}] Upload complete: ${file.name}`);
+                    updateConsole();
+                }, 2000);
+            }
+            fileInput.value = '';
+        }
+        
+        // Load server info from panel
+        async function loadServerInfo() {
+            if (panelApiUrl && panelApiKey) {
+                try {
+                    // Example API call to get server details
+                    // const response = await fetch(`${panelApiUrl}/client/servers`, {
+                    //     headers: { 'Authorization': `Bearer ${panelApiKey}` }
+                    // });
+                    // const data = await response.json();
+                    // Update UI with real data
+                } catch (error) {
+                    console.log('Using demo mode');
+                }
+            }
+        }
+        
+        // Initialize
+        updateConsole();
+        loadServerInfo();
+        
+        // Auto-refresh console every 10 seconds (optional)
+        // setInterval(() => {
+        //     // Add periodic refresh logic here
+        // }, 10000);
     </script>
 </body>
 </html>
